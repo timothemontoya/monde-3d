@@ -1,11 +1,11 @@
-/* Interface façon Elden Ring : serif gravé, filets dorés, panneaux sombres translucides. */
+/* Interface : typographie de livre de contes (Alegreya), filets dorés, panneaux sombres translucides. */
 :root {
   --or: #d9b56a;
   --or-pale: #f1dcaa;
   --texte: #e9e0cc;
   --texte-2: #a99f8a;
-  --titre: "Cinzel", "Trajan Pro", Georgia, serif;
-  --corps: "EB Garamond", Georgia, serif;
+  --titre: "Alegreya SC", Georgia, serif;
+  --corps: "Alegreya", Georgia, serif;
 }
 
 * { box-sizing: border-box; }

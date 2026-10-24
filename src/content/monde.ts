@@ -350,7 +350,7 @@ export const FEUX: Feu[] = [
   { id: "feu-glace", nom: "Terres de glace", position: [830, 400] },
   { id: "feu-montagne", nom: "Montagnes du vent", position: [860, 820] },
   { id: "feu-atlantes", nom: "Archipel des Atlantes", position: [205, 720] },
-  { id: "feu-foret", nom: "Lisière de la forêt", position: [560, 600] },
+  { id: "feu-foret", nom: "Cœur de la forêt", position: [600, 680] },
 ];
 
 // ─── Objets (PROVISOIRE) ────────────────────────────────────────────────────
@@ -359,9 +359,13 @@ export const OBJETS: Objet[] = [
   { id: "lanterne", nom: "Lanterne", description: "Éclaire autour de toi quand tu la tiens en main.", forme: "lanterne" },
   { id: "boussole", nom: "Boussole", description: "Son aiguille ne pointe pas le nord, mais quelque chose d'autre.", forme: "boussole" },
   { id: "braise", nom: "Braise du volcan", description: "Une braise qui ne s'éteint jamais. Brûlante.", forme: "cristal" },
+  { id: "cle-rouillee", nom: "Clé rouillée", description: "Une vieille clé de fer. Elle ouvre sûrement quelque chose, quelque part.", forme: "cle" },
 ];
 
-export const RAMASSABLES: Ramassable[] = [{ objet: "lanterne", position: [1012, 628] }];
+export const RAMASSABLES: Ramassable[] = [
+  { objet: "lanterne", position: [1012, 628] },
+  { objet: "cle-rouillee", position: [985, 650] },
+];
 
 export const USAGES: Usage[] = [
   {

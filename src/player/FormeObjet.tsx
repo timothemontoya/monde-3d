@@ -6,6 +6,7 @@ import { useJeu } from "../game/store";
 
 const METAL = new THREE.MeshStandardMaterial({ color: "#b8923c", metalness: 0.8, roughness: 0.35 });
 const SOMBRE = new THREE.MeshStandardMaterial({ color: "#3a3430", metalness: 0.5, roughness: 0.5 });
+const ROUILLE = new THREE.MeshStandardMaterial({ color: "#a8754c", metalness: 0.45, roughness: 0.6, emissive: "#3a2010", emissiveIntensity: 0.4 });
 
 /** Forme simple de chaque type d'objet (provisoire, à remplacer par des modèles Blender). */
 export function FormeObjet({ id }: { id: string }) {
@@ -30,13 +31,23 @@ export function FormeObjet({ id }: { id: string }) {
         </group>
       );
     case "cle":
+      // Clé de fer rouillé : anneau ouvragé, tige, panneton à deux dents.
       return (
-        <group rotation-z={0.6}>
-          <mesh material={METAL}>
-            <torusGeometry args={[0.08, 0.02, 6, 12]} />
+        <group rotation={[0.3, 0.5, 0.5]}>
+          <mesh material={ROUILLE}>
+            <torusGeometry args={[0.065, 0.018, 8, 16]} />
           </mesh>
-          <mesh material={METAL} position={[0, -0.22, 0]}>
-            <boxGeometry args={[0.03, 0.3, 0.03]} />
+          <mesh material={ROUILLE} position={[0, -0.075, 0]}>
+            <cylinderGeometry args={[0.028, 0.028, 0.03, 10]} />
+          </mesh>
+          <mesh material={ROUILLE} position={[0, -0.2, 0]}>
+            <cylinderGeometry args={[0.014, 0.014, 0.24, 8]} />
+          </mesh>
+          <mesh material={ROUILLE} position={[0.03, -0.29, 0]}>
+            <boxGeometry args={[0.05, 0.022, 0.016]} />
+          </mesh>
+          <mesh material={ROUILLE} position={[0.025, -0.25, 0]}>
+            <boxGeometry args={[0.04, 0.018, 0.016]} />
           </mesh>
         </group>
       );

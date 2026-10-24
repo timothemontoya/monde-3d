@@ -8,6 +8,7 @@ import { useJeu } from "../game/store";
 import { FormeObjet } from "../player/FormeObjet";
 import { surTerre } from "./carte";
 import { graine, hauteurSol } from "./relief";
+import { textureDouce } from "./textures";
 
 const PIERRE = new THREE.MeshStandardMaterial({ color: "#7d776c", roughness: 0.9 });
 const BOIS = new THREE.MeshStandardMaterial({ color: "#5a3e26", roughness: 0.85 });
@@ -36,7 +37,7 @@ function Lueurs({ couleur, eteintes }: { couleur: string; eteintes: boolean }) {
   });
   return (
     <points ref={ref} geometry={geo}>
-      <pointsMaterial color={couleur} size={0.22} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} />
+      <pointsMaterial map={textureDouce()} color={couleur} size={0.35} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} />
     </points>
   );
 }

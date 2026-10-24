@@ -1,4 +1,4 @@
-import { KeyboardControls } from "@react-three/drei";
+import { KeyboardControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { Bloom, EffectComposer, ToneMapping, Vignette } from "@react-three/postprocessing";
@@ -10,15 +10,42 @@ import { Joueur, TOUCHES } from "./player/Joueur";
 import { Interface } from "./ui/Interface";
 import { Atmosphere } from "./world/Atmosphere";
 import { Barrieres } from "./world/Barrieres";
-import { carteComprise, chargerCarte, MER, regionA, versMonde } from "./world/carte";
+import { bornes, carteComprise, chargerCarte, MER, regionA, versMonde } from "./world/carte";
 import { REGIONS } from "./content/monde";
 import { hauteurSol } from "./world/relief";
 import { Decor } from "./world/Decor";
 import { Objets } from "./world/Objets";
 import { Eau, Terrain } from "./world/Terrain";
 
+const PARAMS = new URLSearchParams(window.location.search);
 /** Mode léger (?leger dans l'adresse) : sans ombres ni effets, pour les machines modestes. */
-export const LEGER = new URLSearchParams(window.location.search).has("leger");
+export const LEGER = PARAMS.has("leger");
+/**
+ * Vues aériennes (?vue=ciel : de dessus, nord en haut · ?vue=survol : en perspective),
+ * pour voir toute la carte d'un coup. Pas de joueur ni d'interface.
+ */
+const VUE = PARAMS.get("vue");
+
+/** Caméra des vues aériennes : cadre tout le monde. */
+function CameraAerienne() {
+  const { demiLargeur, demiHauteur } = bornes();
+  if (VUE === "ciel")
+    return (
+      <OrthographicCamera
+        makeDefault
+        position={[0, 3000, 0]}
+        up={[0, 0, -1]}
+        left={-demiLargeur}
+        right={demiLargeur}
+        top={demiHauteur}
+        bottom={-demiHauteur}
+        near={1}
+        far={6000}
+        onUpdate={(c) => c.lookAt(0, 0, 0)}
+      />
+    );
+  return <PerspectiveCamera makeDefault position={[0, 1900, 2700]} fov={50} far={9000} onUpdate={(c) => c.lookAt(0, 0, -250)} />;
+}
 
 export default function App() {
   // La forme du monde vient de la carte dessinée : on la lit avant de construire quoi que ce soit.
@@ -56,14 +83,15 @@ export default function App() {
         }}
       >
         <Suspense fallback={null}>
-          <Atmosphere />
+          {VUE && <CameraAerienne />}
+          <Atmosphere sansBrume={!!VUE} />
           <Physics>
             <Terrain />
             <Eau />
             <Barrieres />
             <Decor />
             <Objets />
-            <Joueur />
+            {!VUE && <Joueur />}
           </Physics>
           <ObjetEnMain />
           {/* Lumière dorée qui « bave » sur les zones brillantes, coins assombris : rendu cinéma. */}
@@ -76,7 +104,7 @@ export default function App() {
           )}
         </Suspense>
       </Canvas>
-      <Interface />
+      {!VUE && <Interface />}
     </KeyboardControls>
   );
 }

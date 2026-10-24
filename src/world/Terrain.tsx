@@ -38,7 +38,7 @@ export function Terrain() {
       } else {
         const [herbe, roche] = couleursRegions[r];
         // Variation douce pour casser l'uniformité.
-        const tache = (Math.sin(x * 0.031) * Math.cos(z * 0.027) + Math.sin(x * 0.009 + z * 0.013)) * 0.12;
+        const tache = (Math.sin(x * 0.031) * Math.cos(z * 0.027) + Math.sin(x * 0.009 + z * 0.013)) * 0.035;
         c.copy(herbe).offsetHSL(0, 0, tache);
         c.lerp(roche, THREE.MathUtils.smoothstep(pente, 0.18, 0.42));
         if (y < NIVEAU_MER + 2.2) c.lerp(SABLE, 0.85);

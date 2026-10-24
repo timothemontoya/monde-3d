@@ -6,6 +6,7 @@ import { FEUX, FRONTIERES_MAGIQUES, INDICES, LIEUX, PONTS, PORTS, RAMASSABLES, R
 import type { Px, Vegetation as TypeVegetation } from "../content/types";
 import { bornes, laCarte, MER, regionA, surTerre, versMonde } from "./carte";
 import { graine, hauteurPont, hauteurSol, hauteurTerrain, NIVEAU_MER } from "./relief";
+import { textureDouce } from "./textures";
 
 // Décor PROVISOIRE : il sera remplacé petit à petit par tes modèles Blender.
 
@@ -336,20 +337,6 @@ function Lave() {
       ))}
     </>
   );
-}
-
-/** Tache ronde et floue (dégradé radial) : sans elle, les particules sont des carrés. */
-function textureDouce() {
-  const toile = document.createElement("canvas");
-  toile.width = toile.height = 64;
-  const ctx = toile.getContext("2d")!;
-  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  g.addColorStop(0, "rgba(255,255,255,1)");
-  g.addColorStop(0.4, "rgba(255,255,255,0.45)");
-  g.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 64, 64);
-  return new THREE.CanvasTexture(toile);
 }
 
 /** Brume magique le long des frontières infranchissables et des côtes de la forêt des sorcières. */

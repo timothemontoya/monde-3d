@@ -53,7 +53,7 @@ function materiauCiel() {
  * Ciel, soleil et brume. L'ambiance (couleur et densité de la brume, teinte du soleil)
  * glisse doucement vers celle de la région où se trouve le joueur.
  */
-export function Atmosphere() {
+export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
   const scene = useThree((s) => s.scene);
   const soleil = useRef<THREE.DirectionalLight>(null);
   const ciel = useRef<THREE.Mesh>(null);
@@ -62,9 +62,9 @@ export function Atmosphere() {
 
   const brume = useMemo(() => {
     const f = new THREE.FogExp2(AMBIANCE_HORS_ZONE.brume, AMBIANCE_HORS_ZONE.densite);
-    scene.fog = f;
+    scene.fog = sansBrume ? null : f;
     return f;
-  }, [scene]);
+  }, [scene, sansBrume]);
 
   const cible = useMemo(() => {
     const a = REGIONS.find((r) => r.id === zone)?.ambiance ?? AMBIANCE_HORS_ZONE;
