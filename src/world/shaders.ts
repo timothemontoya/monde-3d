@@ -44,26 +44,28 @@ export function materiauTempete() {
 /**
  * Voile de brume dorée, façon Elden Ring : volutes lumineuses qui montent.
  */
-export function materiauVoile() {
+export function materiauVoile(teinte: [string, string] = ["#ffb847", "#ffeb99"]) {
+  const [c1, c2] = teinte.map((c) => new THREE.Color(c));
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
     side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
     fog: false,
-    uniforms: { uTemps: { value: 0 }, uDisparition: { value: 0 } },
+    uniforms: { uTemps: { value: 0 }, uDisparition: { value: 0 }, uCouleur1: { value: c1 }, uCouleur2: { value: c2 } },
     vertexShader: /* glsl */ `
       varying vec2 vUv; varying vec3 vMonde;
       void main() { vUv = uv; vec4 m = modelMatrix * vec4(position, 1.0); vMonde = m.xyz; gl_Position = projectionMatrix * viewMatrix * m; }`,
     fragmentShader: /* glsl */ `
-      uniform float uTemps; uniform float uDisparition; varying vec2 vUv; varying vec3 vMonde;
+      uniform float uTemps; uniform float uDisparition; uniform vec3 uCouleur1; uniform vec3 uCouleur2;
+      varying vec2 vUv; varying vec3 vMonde;
       ${BRUIT}
       void main() {
         vec3 p = vec3(vUv.x * 3.0, vUv.y * 2.0 - uTemps * 0.35, uTemps * 0.1);
         float n = fbm(p * 2.2);
         float volutes = smoothstep(0.35, 0.8, n);
         float bords = smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x) * smoothstep(1.0, 0.7, vUv.y);
-        vec3 or_ = mix(vec3(1.0, 0.72, 0.28), vec3(1.0, 0.92, 0.6), n);
+        vec3 or_ = mix(uCouleur1, uCouleur2, n);
         float alpha = (0.18 + volutes * 0.75) * bords * (1.0 - uDisparition);
         gl_FragColor = vec4(or_ * alpha * 1.6, alpha);
         #include <colorspace_fragment>

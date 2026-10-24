@@ -116,3 +116,64 @@ kbd {
 @keyframes apparition { from { opacity: 0; } to { opacity: 1; } }
 @keyframes glisse { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: none; } }
 @keyframes secousse { 25% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
+
+/* ── Mini-carte ──────────────────────────────────────────────── */
+.mini-carte { position: absolute; top: 1.2rem; right: 1.2rem; width: 190px; height: 190px; border-radius: 50%;
+  border: 1px solid rgba(217,181,106,0.55); box-shadow: 0 0 0 4px rgba(10,9,7,0.5), 0 6px 20px rgba(0,0,0,0.5); }
+.mini-carte canvas { display: block; border-radius: 50%; }
+.mini-carte .nord { position: absolute; top: -0.65rem; left: 50%; transform: translateX(-50%); font-family: var(--titre);
+  font-size: 0.75rem; color: var(--or-pale); background: rgba(10,9,7,0.85); padding: 0 0.35rem; border-radius: 3px; }
+.notifications { top: 15rem; }
+
+/* ── Barre d'objets ──────────────────────────────────────────── */
+.barre-objets { position: absolute; bottom: 1.2rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.4rem; }
+.barre-objets .case { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; min-width: 84px; padding: 0.45rem 0.6rem;
+  background: rgba(10,9,7,0.6); border: 1px solid rgba(217,181,106,0.25); font-size: 0.85rem; color: var(--texte-2); }
+.barre-objets .case.active { border-color: var(--or); color: var(--or-pale); box-shadow: 0 0 14px rgba(217,181,106,0.3); }
+
+/* ── Panneau de lore (sur le côté) ───────────────────────────── */
+.panneau-lore { position: absolute; left: 1.4rem; top: 50%; width: min(360px, 40vw); padding: 1.4rem 1.6rem;
+  transform: translate(-30px, -50%); opacity: 0; transition: opacity 1.2s ease, transform 1.2s ease;
+  background: linear-gradient(90deg, rgba(10,9,7,0.82), rgba(10,9,7,0.45)); border-left: 2px solid var(--or); }
+.panneau-lore.visible { opacity: 1; transform: translate(0, -50%); }
+.panneau-lore h3 { font-family: var(--titre); font-weight: 400; color: var(--or-pale); letter-spacing: 0.06em; margin: 0.3rem 0 0; font-size: 1.4rem; }
+.panneau-lore .sur-titre { font-size: 0.7rem; }
+.filet.gauche { margin: 0.8rem 0; width: 70%; background: linear-gradient(90deg, var(--or), transparent); }
+.lore { margin: 0 0 0.7rem; line-height: 1.5; font-size: 1.05rem; }
+.lore.cache { color: var(--texte-2); letter-spacing: 0.3em; opacity: 0.7; }
+.lore.cache small { letter-spacing: 0.05em; font-style: italic; margin-left: 0.4rem; }
+.especes-lieu h5 { font-family: var(--titre); font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; font-size: 0.7rem;
+  color: var(--or); margin: 0.8rem 0 0.3rem; }
+.especes-lieu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; color: var(--texte-2); }
+
+/* ── Journal ─────────────────────────────────────────────────── */
+.panneau.large { width: min(1100px, 94vw); max-height: 90vh; }
+.grande-carte { position: relative; width: 100%; }
+.grande-carte canvas { display: block; width: 100%; border: 1px solid rgba(217,181,106,0.2); }
+.etiquette-carte { position: absolute; transform: translate(-50%, -50%); font-family: var(--titre); font-size: 0.72rem;
+  letter-spacing: 0.06em; color: #1a1510; text-shadow: 0 0 4px rgba(255,255,255,0.8); white-space: nowrap; pointer-events: none; }
+.etiquette-carte.region { font-size: 0.85rem; font-weight: 500; }
+.feu-carte { position: absolute; transform: translate(-50%, -50%); background: none; border: none; cursor: pointer; padding: 0;
+  display: flex; flex-direction: column; align-items: center; }
+.feu-carte .flamme { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle, #ffe08a, #ff7a1a 60%, transparent 70%);
+  box-shadow: 0 0 10px #ff8a2a; }
+.feu-carte em { font-style: normal; font-family: var(--titre); font-size: 0.65rem; color: #1a1510; opacity: 0; transition: opacity 0.2s;
+  background: rgba(241,220,170,0.9); padding: 0 0.3rem; white-space: nowrap; }
+.feu-carte:hover em, .feu-carte:focus-visible em { opacity: 1; }
+.carnet article.inconnu { opacity: 0.55; }
+.sac { list-style: none; padding: 0; margin: 0; text-align: left; }
+.sac li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.8rem 0; border-bottom: 1px solid rgba(217,181,106,0.12); }
+.sac li div { display: flex; flex-direction: column; gap: 0.2rem; }
+.sac li strong { font-family: var(--titre); font-weight: 400; color: var(--or-pale); }
+.sac li span { color: var(--texte-2); }
+.sac li.en-main strong { color: var(--or); }
+.destinations { display: flex; flex-direction: column; gap: 0.6rem; align-items: center; margin-bottom: 1.2rem; }
+.bouton:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Fondu (voyages) ─────────────────────────────────────────── */
+.fondu { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity 0.8s ease; pointer-events: none; }
+.fondu.actif { opacity: 1; }
+
+/* ── Chargement ──────────────────────────────────────────────── */
+.chargement { position: fixed; inset: 0; display: grid; place-items: center; background: #000; font-family: var(--titre);
+  letter-spacing: 0.3em; text-transform: uppercase; color: var(--texte-2); font-size: 0.85rem; }

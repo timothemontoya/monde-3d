@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { ENIGMES, INDICES, SUCCES, ZONES } from "../content/monde";
-import { capturerSouris } from "../player/Joueur";
-import { enigmeParId, indiceParId, normaliser, useJeu } from "../game/store";
+import { INDICES, LIEUX, OBJETS, REGIONS, SUCCES, USAGES } from "../content/monde";
+import { positionJoueur } from "../game/joueur";
+import { enigmeParId, indiceParId, normaliser, objetParId, portParId, remplie, useJeu } from "../game/store";
+import { capturerSouris, teleporterVers } from "../player/Joueur";
+import { surTerre } from "../world/carte";
+import { MiniCarte } from "./Carte";
+import { EspecesDuLieu, Journal, Paragraphes } from "./Journal";
 
 /**
  * Ferme le panneau. Si on était en jeu, la partie reprend : le clic sur « Fermer »
@@ -14,8 +18,8 @@ function reprendre() {
 }
 
 function EcranTitre() {
-  const { zones, indices, entrer, ouvrir, reinitialiser } = useJeu();
-  const dejaCommence = zones.length > 0 || indices.length > 0;
+  const { lieux, entrer, ouvrir, reinitialiser } = useJeu();
+  const dejaCommence = lieux.length > 0;
   return (
     <div className="ecran-titre">
       <div className="titre-bloc">
@@ -33,8 +37,8 @@ function EcranTitre() {
         </button>
         {dejaCommence && (
           <div className="boutons-secondaires">
-            <button className="bouton" onClick={() => ouvrir({ type: "carnet" })}>
-              Carnet
+            <button className="bouton" onClick={() => ouvrir({ type: "journal", onglet: "carte" })}>
+              Journal
             </button>
             <button
               className="bouton"
@@ -52,15 +56,17 @@ function EcranTitre() {
         <li><kbd>Z Q S D</kbd> se déplacer</li>
         <li><kbd>Espace</kbd> / <kbd>C</kbd> monter / descendre</li>
         <li><kbd>Maj</kbd> aller vite</li>
-        <li><kbd>E</kbd> examiner</li>
-        <li><kbd>Tab</kbd> carnet</li>
+        <li><kbd>E</kbd> examiner, ramasser</li>
+        <li><kbd>1</kbd>…<kbd>8</kbd> prendre un objet en main</li>
+        <li><kbd>F</kbd> utiliser l'objet</li>
+        <li><kbd>Tab</kbd> journal</li>
         <li><kbd>Échap</kbd> pause</li>
       </ul>
     </div>
   );
 }
 
-/** Grande bannière quand on entre dans une zone, comme « Lieu de grâce découvert ». */
+/** Grande bannière quand on entre dans un lieu, comme « Lieu de grâce découvert ». */
 function Banniere() {
   const banniere = useJeu((s) => s.banniere);
   const [visible, setVisible] = useState(false);
@@ -77,6 +83,30 @@ function Banniere() {
       <h2>{banniere.titre}</h2>
       <p>{banniere.sousTitre}</p>
     </div>
+  );
+}
+
+/** Panneau de lore sur le côté : ce qu'on sait du lieu (et ce qu'il reste à découvrir). */
+function PanneauLore() {
+  const affiche = useJeu((s) => s.affiche);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!affiche) return;
+    setVisible(true);
+    const t = setTimeout(() => setVisible(false), 14000);
+    return () => clearTimeout(t);
+  }, [affiche]);
+  if (!affiche) return null;
+  const lieu = LIEUX.find((l) => l.id === affiche.id) ?? REGIONS.find((r) => r.id === affiche.id);
+  if (!lieu) return null;
+  return (
+    <aside className={`panneau-lore ${visible ? "visible" : ""}`} key={affiche.cle}>
+      <p className="sur-titre">{lieu.sousTitre}</p>
+      <h3>{lieu.nom}</h3>
+      <div className="filet gauche" />
+      <Paragraphes lore={lieu.lore} />
+      <EspecesDuLieu id={lieu.id} />
+    </aside>
   );
 }
 
@@ -99,14 +129,30 @@ function Notifications() {
   );
 }
 
+/** Barre d'objets : les objets du sac, celui en main est mis en avant. */
+function BarreObjets() {
+  const { objets, enMain } = useJeu();
+  const liste = OBJETS.filter((o) => objets.includes(o.id)).slice(0, 8);
+  if (!liste.length) return null;
+  return (
+    <div className="barre-objets">
+      {liste.map((o, i) => (
+        <div key={o.id} className={`case ${enMain === o.id ? "active" : ""}`} title={o.nom}>
+          <kbd>{i + 1}</kbd>
+          <span>{o.nom}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ATH() {
-  const { cible, messageBarriere, indices, succes } = useJeu();
-  const libelle =
-    cible?.type === "indice"
-      ? `${indices.includes(cible.id) ? "Relire" : "Examiner"} · ${indiceParId(cible.id).titre}`
-      : cible?.type === "enigme"
-        ? `Examiner · ${enigmeParId(cible.id).titre}`
-        : null;
+  const { cible, message, indices, succes, enMain } = useJeu();
+  let libelle: string | null = null;
+  if (cible?.type === "indice") libelle = `${indices.includes(cible.id) ? "Relire" : "Examiner"} · ${indiceParId(cible.id).titre}`;
+  if (cible?.type === "enigme") libelle = `Examiner · ${enigmeParId(cible.id).titre}`;
+  if (cible?.type === "ramassable") libelle = `Ramasser · ${objetParId(cible.id).nom}`;
+  if (cible?.type === "port") libelle = `Prendre le bateau · ${portParId(cible.id).nom}`;
   return (
     <>
       <div className="viseur" />
@@ -115,7 +161,9 @@ function ATH() {
           <kbd>E</kbd> {libelle}
         </div>
       )}
-      {!libelle && messageBarriere && <div className="message-barriere">{messageBarriere}</div>}
+      {!libelle && message && <div className="message-barriere">{message}</div>}
+      <MiniCarte />
+      <BarreObjets />
       <div className="compteurs">
         <span>
           Indices {indices.length}/{INDICES.length}
@@ -123,16 +171,21 @@ function ATH() {
         <span>
           Succès {succes.length}/{SUCCES.length}
         </span>
-        <span className="aide">Tab · carnet</span>
+        {enMain && (
+          <span>
+            <kbd>F</kbd> utiliser · {objetParId(enMain).nom}
+          </span>
+        )}
+        <span className="aide">Tab · journal</span>
       </div>
     </>
   );
 }
 
-function Panneau({ titre, children }: { titre: string; children: React.ReactNode }) {
+function Panneau({ titre, children, large = false }: { titre: string; children: React.ReactNode; large?: boolean }) {
   return (
     <div className="voile-panneau">
-      <div className="panneau">
+      <div className={`panneau ${large ? "large" : ""}`}>
         <h2>{titre}</h2>
         <div className="filet" />
         {children}
@@ -162,7 +215,6 @@ function PanneauEnigme({ id }: { id: string }) {
   const [erreur, setErreur] = useState(false);
   const champ = useRef<HTMLInputElement>(null);
   useEffect(() => champ.current?.focus(), []);
-
   const valider = (e: React.FormEvent) => {
     e.preventDefault();
     if (normaliser(reponse) === normaliser(enigme.solution)) {
@@ -173,7 +225,6 @@ function PanneauEnigme({ id }: { id: string }) {
       setTimeout(() => setErreur(false), 600);
     }
   };
-
   return (
     <Panneau titre={enigme.titre}>
       <p className="texte-indice">{enigme.question}</p>
@@ -188,110 +239,126 @@ function PanneauEnigme({ id }: { id: string }) {
   );
 }
 
-function Carnet() {
-  const { indices, succes, zones, enigmes } = useJeu();
-  const [onglet, setOnglet] = useState<"indices" | "succes">("indices");
+/** Voyage en bateau : choix de la destination depuis un port. */
+function Voyage({ id }: { id: string }) {
+  const etat = useJeu();
+  const port = portParId(id);
+  const partir = (dest: string) => {
+    const arrivee = portParId(dest);
+    etat.setFondu(true);
+    etat.fermer();
+    capturerSouris();
+    setTimeout(() => teleporterVers(arrivee.position), 900);
+    setTimeout(() => {
+      etat.setFondu(false);
+      etat.notifier(arrivee.nom, "Le bateau te dépose à quai.");
+    }, 1900);
+  };
   return (
-    <Panneau titre="Carnet">
-      <div className="onglets">
-        <button className={onglet === "indices" ? "actif" : ""} onClick={() => setOnglet("indices")}>
-          Indices ({indices.length}/{INDICES.length})
-        </button>
-        <button className={onglet === "succes" ? "actif" : ""} onClick={() => setOnglet("succes")}>
-          Succès ({succes.length}/{SUCCES.length})
-        </button>
+    <Panneau titre={port.nom}>
+      <p className="texte-indice">Un bateau attend à quai. Où veux-tu aller ?</p>
+      <div className="destinations">
+        {port.destinations.map((d) => {
+          const dest = portParId(d);
+          const ouvert = remplie(dest.quand, etat) && remplie(port.quand, etat);
+          return (
+            <button key={d} className="bouton" disabled={!ouvert} onClick={() => partir(d)}>
+              {ouvert ? dest.nom : "Destination inconnue"}
+            </button>
+          );
+        })}
       </div>
-      {onglet === "indices" ? (
-        <div className="carnet">
-          {ZONES.filter((z) => zones.includes(z.id)).map((z) => {
-            const trouves = INDICES.filter((i) => i.zone === z.id && indices.includes(i.id));
-            const total = INDICES.filter((i) => i.zone === z.id).length;
-            return (
-              <section key={z.id}>
-                <h3>
-                  {z.nom} <small>{trouves.length}/{total}</small>
-                </h3>
-                {trouves.map((i) => (
-                  <article key={i.id}>
-                    <h4>{i.titre}</h4>
-                    <p>{i.texte}</p>
-                    {i.liens?.length ? (
-                      <p className="liens">
-                        Lié à :{" "}
-                        {i.liens.map((l) => (indices.includes(l) ? indiceParId(l).titre : "???")).join(" · ")}
-                      </p>
-                    ) : null}
-                  </article>
-                ))}
-              </section>
-            );
-          })}
-          {zones.length === 0 && <p className="vide">Aucun lieu découvert pour l'instant.</p>}
-          {ENIGMES.length > 0 && <p className="vide">Énigmes résolues : {enigmes.length}/{ENIGMES.length}</p>}
-        </div>
-      ) : (
-        <ul className="liste-succes">
-          {SUCCES.map((s) => {
-            const obtenu = succes.includes(s.id);
-            const cache = s.secret && !obtenu;
-            return (
-              <li key={s.id} className={obtenu ? "obtenu" : ""}>
-                <strong>{cache ? "Succès secret" : s.titre}</strong>
-                <span>{cache ? "???" : s.description}</span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </Panneau>
   );
 }
 
+/** Utiliser l'objet tenu en main là où l'on se trouve. */
+function utiliserObjet() {
+  const s = useJeu.getState();
+  if (!s.enMain) return;
+  const usage = USAGES.find((u) => {
+    if (u.objet !== s.enMain) return false;
+    const [x, z] = surTerre(u.position);
+    return Math.hypot(positionJoueur.x - x, positionJoueur.z - z) < u.rayon;
+  });
+  if (usage) {
+    s.notifier(objetParId(usage.objet).nom, usage.message);
+    if (usage.resout) s.resoudre(usage.resout);
+  } else {
+    s.signaler("Rien ne se passe.");
+  }
+}
+
 const TOUCHES_NAVIGATEUR = new Set(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Quote", "Slash", "Backquote"]);
 
-/** Raccourcis clavier de l'interface : E pour examiner, Tab pour le carnet, Échap pour fermer. */
+/** Raccourcis clavier de l'interface. */
 function useRaccourcis() {
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
       const s = useJeu.getState();
-      // En jeu, certaines touches ne doivent pas déclencher d'action du navigateur : Espace et les
-      // flèches font défiler, ' et / ouvrent la recherche rapide de Firefox. (F5, F11… restent libres.)
+      // Espace et les flèches font défiler, ' et / ouvrent la recherche rapide de Firefox.
       if (s.enJeu && !s.panneau && TOUCHES_NAVIGATEUR.has(e.code)) e.preventDefault();
       if (e.target instanceof HTMLInputElement) {
         if (e.key === "Escape") s.fermer();
         return;
       }
-      if (e.code === "KeyE" && s.enJeu && !s.panneau && s.cible) {
+      const libre = s.enJeu && !s.panneau && !s.fondu;
+      if (e.code === "KeyE" && libre && s.cible) {
         // Sans ça, le « e » s'écrirait dans le champ de réponse qui prend le focus.
         e.preventDefault();
-        s.ouvrir({ type: s.cible.type, id: s.cible.id });
+        const c = s.cible;
+        if (c.type === "ramassable") s.ramasser(c.id);
+        else if (c.type === "port") s.ouvrir({ type: "voyage", id: c.id });
+        else s.ouvrir({ type: c.type, id: c.id });
+      } else if (e.code === "KeyF" && libre) {
+        utiliserObjet();
+      } else if (/^Digit[1-8]$/.test(e.code) && libre) {
+        const liste = OBJETS.filter((o) => s.objets.includes(o.id));
+        const objet = liste[Number(e.code.slice(5)) - 1];
+        if (objet) s.tenir(objet.id);
       } else if (e.key === "Tab") {
         e.preventDefault();
-        if (s.panneau?.type === "carnet") reprendre();
-        else if (!s.panneau) s.ouvrir({ type: "carnet" });
+        if (s.panneau?.type === "journal") reprendre();
+        else if (!s.panneau) s.ouvrir({ type: "journal", onglet: "carte" });
       } else if (e.key === "Escape" && s.panneau) {
         // Échap ne permet pas de recapturer la souris : on passe par l'écran de pause.
         s.fermer();
         s.sortir();
       }
     };
+    // Clic gauche en jeu : utiliser l'objet (la souris est capturée, le clic ne vise rien d'autre).
+    const surClic = (e: MouseEvent) => {
+      const s = useJeu.getState();
+      if (e.button === 0 && s.enJeu && !s.panneau && document.pointerLockElement) utiliserObjet();
+    };
     window.addEventListener("keydown", surTouche);
-    return () => window.removeEventListener("keydown", surTouche);
+    window.addEventListener("mousedown", surClic);
+    return () => {
+      window.removeEventListener("keydown", surTouche);
+      window.removeEventListener("mousedown", surClic);
+    };
   }, []);
 }
 
 export function Interface() {
   useRaccourcis();
-  const { enJeu, panneau } = useJeu();
+  const { enJeu, panneau, fondu } = useJeu();
   return (
     <div className="interface">
       {enJeu && !panneau && <ATH />}
       {!enJeu && !panneau && <EcranTitre />}
       <Banniere />
+      {enJeu && <PanneauLore />}
       <Notifications />
       {panneau?.type === "indice" && <Lecture id={panneau.id} />}
       {panneau?.type === "enigme" && <PanneauEnigme id={panneau.id} />}
-      {panneau?.type === "carnet" && <Carnet />}
+      {panneau?.type === "voyage" && <Voyage id={panneau.id} />}
+      {panneau?.type === "journal" && (
+        <Panneau titre="Journal de bord" large>
+          <Journal onglet={panneau.onglet} />
+        </Panneau>
+      )}
+      <div className={`fondu ${fondu ? "actif" : ""}`} />
     </div>
   );
 }

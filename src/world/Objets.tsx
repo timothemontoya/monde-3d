@@ -2,15 +2,22 @@ import { useFrame } from "@react-three/fiber";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { ENIGMES, INDICES } from "../content/monde";
-import type { Indice } from "../content/types";
+import { ENIGMES, INDICES, RAMASSABLES } from "../content/monde";
+import type { Indice, Px } from "../content/types";
 import { useJeu } from "../game/store";
+import { FormeObjet } from "../player/FormeObjet";
+import { surTerre } from "./carte";
 import { graine, hauteurSol } from "./relief";
 
 const PIERRE = new THREE.MeshStandardMaterial({ color: "#7d776c", roughness: 0.9 });
 const BOIS = new THREE.MeshStandardMaterial({ color: "#5a3e26", roughness: 0.85 });
 
-/** Petites lueurs qui flottent autour d'un objet pas encore découvert (comme les objets au sol d'Elden Ring). */
+const auSol = (p: Px) => {
+  const [x, z] = surTerre(p);
+  return [x, hauteurSol(x, z), z] as [number, number, number];
+};
+
+/** Petites lueurs autour d'un objet pas encore découvert (comme les objets au sol d'Elden Ring). */
 function Lueurs({ couleur, eteintes }: { couleur: string; eteintes: boolean }) {
   const ref = useRef<THREE.Points>(null);
   const geo = useMemo(() => {
@@ -36,16 +43,13 @@ function Lueurs({ couleur, eteintes }: { couleur: string; eteintes: boolean }) {
 
 function ObjetIndice({ indice }: { indice: Indice }) {
   const trouve = useJeu((s) => s.indices.includes(indice.id));
-  const [x, z] = indice.position;
-  const y = hauteurSol(x, z);
+  const position = useMemo(() => auSol(indice.position), [indice]);
   const braise = useRef<THREE.Mesh>(null);
-
   useFrame((state) => {
     if (braise.current) braise.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 2.2) * 0.12);
   });
-
   return (
-    <group position={[x, y, z]}>
+    <group position={position}>
       {indice.objet === "stele" && (
         <RigidBody type="fixed" colliders="cuboid">
           <mesh material={PIERRE} position={[0, 2.2, 0]} castShadow>
@@ -79,11 +83,15 @@ function ObjetIndice({ indice }: { indice: Indice }) {
             </mesh>
             <CuboidCollider args={[1.2, 0.5, 1.2]} position={[0, 0.5, 0]} />
           </RigidBody>
-          <mesh ref={braise} position={[0, 1.6, 0]}>
-            <icosahedronGeometry args={[0.45, 1]} />
-            <meshStandardMaterial color="#ff7a2a" emissive="#ff5a10" emissiveIntensity={4} />
-          </mesh>
-          <pointLight position={[0, 2, 0]} color="#ff8a3a" intensity={40} distance={18} />
+          {!trouve && (
+            <>
+              <mesh ref={braise} position={[0, 1.6, 0]}>
+                <icosahedronGeometry args={[0.45, 1]} />
+                <meshStandardMaterial color="#ff7a2a" emissive="#ff5a10" emissiveIntensity={4} />
+              </mesh>
+              <pointLight position={[0, 2, 0]} color="#ff8a3a" intensity={40} distance={18} />
+            </>
+          )}
         </>
       )}
       <Lueurs couleur="#ffd37a" eteintes={trouve} />
@@ -91,16 +99,36 @@ function ObjetIndice({ indice }: { indice: Indice }) {
   );
 }
 
+/** Objet posé au sol : flotte et tourne sur lui-même jusqu'à ce qu'on le ramasse. */
+function Ramassable({ objet, position }: { objet: string; position: Px }) {
+  const possede = useJeu((s) => s.objets.includes(objet));
+  const p = useMemo(() => auSol(position), [position]);
+  const ref = useRef<THREE.Group>(null);
+  useFrame((state) => {
+    if (!ref.current) return;
+    ref.current.rotation.y = state.clock.elapsedTime;
+    ref.current.position.y = 1.2 + Math.sin(state.clock.elapsedTime * 1.5) * 0.15;
+  });
+  if (possede) return null;
+  return (
+    <group position={p}>
+      <group ref={ref}>
+        <FormeObjet id={objet} />
+      </group>
+      <Lueurs couleur="#bfe3ff" eteintes={false} />
+    </group>
+  );
+}
+
 /** Cadran à combinaison (énigme), posé sur un socle. */
-function Cadran({ position, resolue }: { position: [number, number]; resolue: boolean }) {
-  const [x, z] = position;
-  const y = hauteurSol(x, z);
+function Cadran({ position, resolue }: { position: Px; resolue: boolean }) {
+  const p = useMemo(() => auSol(position), [position]);
   const disque = useRef<THREE.Mesh>(null);
   useFrame((_, delta) => {
     if (disque.current) disque.current.rotation.z += delta * (resolue ? 0 : 0.15);
   });
   return (
-    <group position={[x, y, z]}>
+    <group position={p}>
       <RigidBody type="fixed" colliders="cuboid">
         <mesh material={PIERRE} position={[0, 0.9, 0]} castShadow>
           <boxGeometry args={[1.4, 1.8, 1.4]} />
@@ -121,6 +149,9 @@ export function Objets() {
     <>
       {INDICES.map((i) => (
         <ObjetIndice key={i.id} indice={i} />
+      ))}
+      {RAMASSABLES.map((r) => (
+        <Ramassable key={r.objet} objet={r.objet} position={r.position} />
       ))}
       {ENIGMES.map((e) => (
         <Cadran key={e.id} position={e.position} resolue={enigmes.includes(e.id)} />

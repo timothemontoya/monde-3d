@@ -1,76 +1,176 @@
 // Types du contenu du monde. Le contenu lui-même est dans monde.ts.
+//
+// Les positions s'écrivent en PIXELS DE TA CARTE (public/carte.jpg, 1920 × 1080) :
+// ouvre la carte dans un logiciel de dessin, lis les coordonnées du curseur, et reporte-les.
 
-/** Position au sol [x, z] en mètres. La hauteur est calculée à partir du relief. */
-export type Pos = [number, number];
+/** Position [x, y] en pixels sur la carte. */
+export type Px = [number, number];
 
 export type Ambiance = {
   /** Couleur de la brume et de l'horizon. */
   brume: string;
-  /** Densité de la brume (0.002 = très clair, 0.012 = épais). */
+  /** Densité de la brume (0.0008 = très clair, 0.006 = épais). */
   densite: number;
   /** Couleur de la lumière du soleil. */
   lumiere: string;
 };
 
-export type Zone = {
-  id: string;
-  nom: string;
-  /** Petite phrase affichée sous le nom quand on découvre la zone. */
-  sousTitre: string;
-  centre: Pos;
-  rayon: number;
-  ambiance: Ambiance;
-  /** Aplatit le terrain dans la zone (villages, places), à cette hauteur. */
-  plateau?: number;
-  /**
-   * Remparts autour de la zone, plus hauts que le vol maximal : on ne peut entrer
-   * que par l'ouverture, où se trouve une barrière.
-   */
-  enceinte?: {
-    hauteur: number;
-    /** Direction de l'ouverture, en degrés : 0 = est, 90 = sud, 180 = ouest, 270 = nord. */
-    ouverture: number;
-    /** Largeur de l'ouverture, en m. */
-    largeurOuverture: number;
-  };
-};
-
-/** Ce qu'il faut avoir fait pour ouvrir une barrière. Tout doit être rempli. */
+/** Ce qu'il faut avoir fait pour qu'une chose s'ouvre ou se révèle. Tout doit être rempli. */
 export type Condition = {
   indices?: string[];
-  enigme?: string;
+  enigmes?: string[];
+  lieux?: string[];
+  /** Objet à posséder dans le sac. */
+  objet?: string;
+  /** Objet à tenir en main au moment de passer. */
+  objetEnMain?: string;
+};
+
+/** Un paragraphe de lore : caché (« … ») tant que sa condition n'est pas remplie. */
+export type Lore = { texte: string; quand?: Condition };
+
+export type Relief = {
+  /** Altitude moyenne du sol, en m (la mer est à 0). */
+  altitude: number;
+  /** Amplitude des bosses et des pics, en m. */
+  amplitude: number;
+  /** 0 = collines douces, 1 = crêtes montagneuses. */
+  montagne: number;
+};
+
+export type Vegetation = "foret-doree" | "foret-sombre" | "pins-enneiges" | "arbres-morts" | "rochers" | "aucune";
+
+/** Une région = une couleur de ta carte. */
+export type Region = {
+  id: string;
+  nom: string;
+  /** Couleur de la région sur la carte (le moteur trouve les pixels les plus proches). */
+  couleur: string;
+  /**
+   * Si plusieurs morceaux ont la même couleur (île du volcan et continent, par ex.), ce point
+   * désigne le morceau qui appartient à CETTE région. Sans point : tous les autres morceaux.
+   */
+  point?: Px;
+  sousTitre: string;
+  relief: Relief;
+  ambiance: Ambiance;
+  vegetation: Vegetation;
+  /** Couleurs du sol : herbe/terre principale et roche. */
+  sol: [string, string];
+  lore: Lore[];
+};
+
+/** Lieu-dit : un endroit nommé à l'intérieur d'une région. */
+export type Lieu = {
+  id: string;
+  nom: string;
+  sousTitre: string;
+  position: Px;
+  /** Rayon en mètres. */
+  rayon: number;
+  lore: Lore[];
+};
+
+export type Espece = {
+  id: string;
+  nom: string;
+  /** Régions ou lieux où elle vit. */
+  habitat: string[];
+  description: string;
+  /** Quand l'espèce apparaît dans le journal. */
+  quand: Condition;
 };
 
 export type Barriere = {
   id: string;
-  /** tempete : mur de nuages orageux · brume : voile doré (façon Elden Ring) · porte : grande porte en bois */
-  type: "tempete" | "brume" | "porte";
-  position: Pos;
-  /** Orientation en degrés : direction vers laquelle la barrière fait face (0 = est, 90 = sud…). */
+  /**
+   * tempete : mur de nuages orageux · brume : voile doré · porte : grande porte en bois
+   * givre : mur de glace · sort : voile de magie violette
+   */
+  type: "tempete" | "brume" | "porte" | "givre" | "sort";
+  position: Px;
+  /** Direction vers laquelle elle fait face, en degrés (0 = est, 90 = sud, 180 = ouest, 270 = nord). */
   angle: number;
   /** Largeur en mètres. */
   largeur: number;
-  /** Message affiché quand on s'en approche et qu'elle est fermée. */
   message: string;
   condition: Condition;
 };
 
+/** Crête montagneuse infranchissable (trop raide), avec d'éventuels cols. */
+export type Crete = {
+  id: string;
+  points: Px[];
+  /** Hauteur au-dessus du sol, en m. */
+  hauteur: number;
+  /** Largeur à la base, en m. */
+  largeur: number;
+  /** Passages (le sol redescend) : point et largeur en m. */
+  cols?: { position: Px; largeur: number }[];
+};
+
+/** Frontière infranchissable entre deux régions, matérialisée par une brume magique. */
+export type FrontiereMagique = {
+  regions: [string, string];
+  message: string;
+  /** Condition pour qu'elle s'ouvre. Sans condition : fermée pour toujours. */
+  quand?: Condition;
+};
+
+export type Port = {
+  id: string;
+  nom: string;
+  position: Px;
+  /** Ports joignables d'ici en bateau. */
+  destinations: string[];
+  /** Le port n'est utilisable qu'une fois cette condition remplie. */
+  quand?: Condition;
+};
+
+/** Pont suspendu au-dessus du vide (entre deux îles par exemple). */
+export type Pont = { de: Px; a: Px; largeur: number };
+
+/** Feu de camp : point de repos et de voyage rapide, une fois découvert. */
+export type Feu = { id: string; nom: string; position: Px };
+
+export type Objet = {
+  id: string;
+  nom: string;
+  description: string;
+  /** Forme affichée en main. */
+  forme: "lanterne" | "cle" | "cristal" | "parchemin" | "amulette" | "boussole";
+};
+
+/** Objet posé dans le monde, qu'on ramasse avec E. */
+export type Ramassable = { objet: string; position: Px };
+
+/** Ce qui se passe quand on UTILISE un objet tenu en main à un endroit précis. */
+export type Usage = {
+  objet: string;
+  position: Px;
+  /** Rayon en mètres. */
+  rayon: number;
+  /** Message affiché. */
+  message: string;
+  /** Énigme considérée comme résolue. */
+  resout?: string;
+};
+
 export type Indice = {
   id: string;
-  zone: string;
-  /** Forme de l'objet dans le monde. */
   objet: "stele" | "livre" | "braise";
-  position: Pos;
+  position: Px;
   titre: string;
   texte: string;
-  /** Autres indices liés (le carnet trace un lien entre eux). */
+  /** Autres indices liés (le journal trace un lien entre eux). */
   liens?: string[];
+  /** Objet obtenu en lisant l'indice. */
+  donne?: string;
 };
 
 export type Enigme = {
   id: string;
-  /** Où se trouve le mécanisme à activer. */
-  position: Pos;
+  position: Px;
   titre: string;
   question: string;
   /** Réponse attendue (majuscules, accents et espaces ignorés). */
@@ -81,8 +181,9 @@ export type Succes = {
   id: string;
   titre: string;
   description: string;
-  /** Caché tant qu'il n'est pas débloqué. */
   secret?: boolean;
-  /** Débloqué quand ces éléments sont tous découverts / résolus / ouverts. */
-  quand: { zones?: string[]; indices?: string[] | "tous"; enigmes?: string[]; barrieres?: string[] };
+  quand: Condition & { indicesTous?: boolean; especesToutes?: boolean };
 };
+
+/** Volcan : un cône avec un cratère de lave. */
+export type Volcan = { position: Px; hauteur: number; /** Rayon de la base, en m. */ rayon: number };

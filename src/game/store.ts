@@ -1,68 +1,99 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { BARRIERES, ENIGMES, INDICES, SUCCES, ZONES } from "../content/monde";
-import type { Barriere, Succes } from "../content/types";
+import { ENIGMES, ESPECES, FEUX, INDICES, LIEUX, OBJETS, PORTS, REGIONS, SUCCES } from "../content/monde";
+import type { Condition, Succes } from "../content/types";
 
 /** Progression du joueur, sauvegardée dans le navigateur. */
 type Progression = {
-  zones: string[];
+  /** Régions et lieux-dits découverts (identifiants). */
+  lieux: string[];
   indices: string[];
   enigmes: string[];
+  /** Objets dans le sac. */
+  objets: string[];
+  /** Objet tenu en main. */
+  enMain: string | null;
+  /** Feux de camp découverts (voyage rapide). */
+  feux: string[];
   succes: string[];
+  /** Cellules de carte explorées (brouillard de la mini-carte), encodées en base64. */
+  explore: string;
+  /** Barrières déjà ouvertes : une fois ouverte, une barrière le reste. */
+  barrieres: string[];
 };
 
-/** Ce que le joueur regarde ou peut activer en ce moment. */
-export type Cible = { type: "indice" | "enigme"; id: string } | null;
+export type Cible =
+  | { type: "indice" | "enigme" | "port" | "ramassable"; id: string }
+  | null;
 
-type Panneau = { type: "indice" | "enigme"; id: string } | { type: "carnet" } | null;
+export type Onglet = "carte" | "lieux" | "indices" | "especes" | "sac" | "succes";
+
+type Panneau =
+  | { type: "indice" | "enigme" | "voyage"; id: string }
+  | { type: "journal"; onglet: Onglet }
+  | null;
+
+/** Lieu affiché sur le côté (lore) quand on y entre. */
+type Affiche = { id: string; cle: number } | null;
 
 type Etat = Progression & {
   enJeu: boolean;
-  zoneActuelle: string | null;
+  regionActuelle: string | null;
+  lieuActuel: string | null;
   cible: Cible;
-  /** Message d'une barrière fermée proche. */
-  messageBarriere: string | null;
+  message: string | null;
   panneau: Panneau;
-  /** Bannière « zone découverte » en cours d'affichage. */
   banniere: { titre: string; sousTitre: string; cle: number } | null;
+  affiche: Affiche;
   notifications: { id: string; titre: string; texte: string }[];
+  /** Écran noir pendant un voyage. */
+  fondu: boolean;
 
   entrer: () => void;
   sortir: () => void;
-  entrerDansZone: (id: string | null) => void;
+  entrerDans: (region: string | null, lieu: string | null) => void;
   viser: (c: Cible) => void;
-  signalerBarriere: (message: string | null) => void;
+  signaler: (message: string | null) => void;
   ouvrir: (p: Panneau) => void;
   fermer: () => void;
   trouverIndice: (id: string) => void;
   resoudre: (id: string) => void;
-  retirerNotification: (id: string) => void;
-  /** Message ponctuel (ex : « La tempête se dissipe… »). */
+  ramasser: (objet: string) => void;
+  tenir: (objet: string | null) => void;
+  decouvrirFeu: (id: string) => void;
+  /** Mémorise l'ouverture d'une barrière (définitive). */
+  ouvrirBarriere: (id: string) => void;
+  marquerExplore: (cellules: number[]) => void;
+  setFondu: (v: boolean) => void;
   notifier: (titre: string, texte: string) => void;
+  retirerNotification: (id: string) => void;
   reinitialiser: () => void;
 };
 
-const vide: Progression = { zones: [], indices: [], enigmes: [], succes: [] };
+const vide: Progression = { lieux: [], indices: [], enigmes: [], objets: [], enMain: null, feux: [], succes: [], explore: "", barrieres: [] };
 
-/** Une barrière est ouverte quand toutes les conditions de son contenu sont remplies. */
-export function estOuverte(b: Barriere, p: Progression) {
-  const { indices = [], enigme } = b.condition;
-  return indices.every((i) => p.indices.includes(i)) && (!enigme || p.enigmes.includes(enigme));
+/** Une barrière est ouverte si elle l'a déjà été, ou si sa condition est remplie maintenant. */
+export const barriereOuverte = (b: { id: string; condition: Condition }, p: Progression) => p.barrieres.includes(b.id) || remplie(b.condition, p);
+
+/** Une condition est remplie quand tous ses éléments le sont. */
+export function remplie(c: Condition | undefined, p: Progression) {
+  if (!c) return true;
+  return (
+    (c.indices ?? []).every((i) => p.indices.includes(i)) &&
+    (c.enigmes ?? []).every((e) => p.enigmes.includes(e)) &&
+    (c.lieux ?? []).every((l) => p.lieux.includes(l)) &&
+    (!c.objet || p.objets.includes(c.objet)) &&
+    (!c.objetEnMain || p.enMain === c.objetEnMain)
+  );
 }
 
 function succesObtenu(s: Succes, p: Progression) {
   const q = s.quand;
-  const indices = q.indices === "tous" ? INDICES.map((i) => i.id) : (q.indices ?? []);
-  const barrieres = (q.barrieres ?? []).map((id) => BARRIERES.find((b) => b.id === id)!);
-  return (
-    (q.zones ?? []).every((z) => p.zones.includes(z)) &&
-    indices.every((i) => p.indices.includes(i)) &&
-    (q.enigmes ?? []).every((e) => p.enigmes.includes(e)) &&
-    barrieres.every((b) => b && estOuverte(b, p))
-  );
+  if (q.indicesTous && !INDICES.every((i) => p.indices.includes(i.id))) return false;
+  if (q.especesToutes && !ESPECES.every((e) => remplie(e.quand, p))) return false;
+  return remplie(q, p);
 }
 
-/** Ajoute les succès nouvellement obtenus et prépare leurs notifications. */
 function verifierSucces(etat: Etat): Partial<Etat> {
   const nouveaux = SUCCES.filter((s) => !etat.succes.includes(s.id) && succesObtenu(s, etat));
   if (!nouveaux.length) return {};
@@ -72,7 +103,6 @@ function verifierSucces(etat: Etat): Partial<Etat> {
   };
 }
 
-/** Normalise une réponse : sans accents, sans espaces, en majuscules. */
 export const normaliser = (s: string) =>
   s
     .normalize("NFD")
@@ -80,32 +110,61 @@ export const normaliser = (s: string) =>
     .replace(/\s+/g, "")
     .toUpperCase();
 
+// Bitset des cellules explorées.
+let bits: Uint8Array | null = null;
+const decoder = (s: string, taille: number) => {
+  const b = new Uint8Array(taille);
+  if (s) {
+    const bin = atob(s);
+    for (let i = 0; i < Math.min(bin.length, taille); i++) b[i] = bin.charCodeAt(i);
+  }
+  return b;
+};
+const encoder = (b: Uint8Array) => {
+  let s = "";
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s);
+};
+
+/** Cellules explorées (pour la mini-carte et la carte du journal). */
+export function lesExplorees(nbCellules: number) {
+  const taille = Math.ceil(nbCellules / 8);
+  if (!bits || bits.length !== taille) bits = decoder(useJeu.getState().explore, taille);
+  return bits;
+}
+
 export const useJeu = create<Etat>()(
   persist(
     (set, get) => ({
       ...vide,
       enJeu: false,
-      zoneActuelle: null,
+      regionActuelle: null,
+      lieuActuel: null,
       cible: null,
-      messageBarriere: null,
+      message: null,
       panneau: null,
       banniere: null,
+      affiche: null,
       notifications: [],
+      fondu: false,
 
       entrer: () => set({ enJeu: true }),
       sortir: () => set({ enJeu: false }),
 
-      entrerDansZone: (id) => {
+      entrerDans: (region, lieu) => {
         const e = get();
-        if (id === e.zoneActuelle) return;
-        if (!id) return set({ zoneActuelle: null });
-        const zone = ZONES.find((z) => z.id === id)!;
-        const premiereFois = !e.zones.includes(id);
-        const next: Partial<Etat> = {
-          zoneActuelle: id,
-          banniere: { titre: zone.nom, sousTitre: premiereFois ? "Lieu découvert" : zone.sousTitre, cle: Date.now() },
-        };
-        if (premiereFois) next.zones = [...e.zones, id];
+        if (region === e.regionActuelle && lieu === e.lieuActuel) return;
+        const next: Partial<Etat> = { regionActuelle: region, lieuActuel: lieu };
+        // Le plus précis gagne : un lieu-dit prime sur la région.
+        const nouveau = lieu !== e.lieuActuel && lieu ? lieu : region !== e.regionActuelle && region ? region : null;
+        if (nouveau) {
+          const def = LIEUX.find((l) => l.id === nouveau) ?? REGIONS.find((r) => r.id === nouveau)!;
+          const premiereFois = !e.lieux.includes(nouveau);
+          next.banniere = { titre: def.nom, sousTitre: premiereFois ? "Lieu découvert" : def.sousTitre, cle: Date.now() };
+          next.affiche = { id: nouveau, cle: Date.now() };
+        }
+        const decouverts = [region, lieu].filter((x): x is string => !!x && !e.lieux.includes(x));
+        if (decouverts.length) next.lieux = [...e.lieux, ...decouverts];
         set(next);
         set(verifierSucces(get()));
       },
@@ -116,8 +175,8 @@ export const useJeu = create<Etat>()(
         set({ cible: c });
       },
 
-      signalerBarriere: (message) => {
-        if (get().messageBarriere !== message) set({ messageBarriere: message });
+      signaler: (message) => {
+        if (get().message !== message) set({ message });
       },
 
       ouvrir: (p) => set({ panneau: p }),
@@ -126,7 +185,14 @@ export const useJeu = create<Etat>()(
       trouverIndice: (id) => {
         const e = get();
         if (e.indices.includes(id)) return;
-        set({ indices: [...e.indices, id] });
+        const indice = INDICES.find((i) => i.id === id);
+        const next: Partial<Etat> = { indices: [...e.indices, id] };
+        if (indice?.donne && !e.objets.includes(indice.donne)) {
+          next.objets = [...e.objets, indice.donne];
+          const objet = OBJETS.find((o) => o.id === indice.donne)!;
+          next.notifications = [...e.notifications, { id: `obj-${objet.id}`, titre: `Obtenu · ${objet.nom}`, texte: objet.description }];
+        }
+        set(next);
         set(verifierSucces(get()));
       },
 
@@ -137,21 +203,79 @@ export const useJeu = create<Etat>()(
         set(verifierSucces(get()));
       },
 
+      ramasser: (id) => {
+        const e = get();
+        if (e.objets.includes(id)) return;
+        const objet = OBJETS.find((o) => o.id === id)!;
+        set({
+          objets: [...e.objets, id],
+          notifications: [...e.notifications, { id: `obj-${id}`, titre: `Obtenu · ${objet.nom}`, texte: objet.description }],
+        });
+        set(verifierSucces(get()));
+      },
+
+      tenir: (objet) => {
+        set({ enMain: objet && get().enMain !== objet ? objet : null });
+        set(verifierSucces(get()));
+      },
+
+      decouvrirFeu: (id) => {
+        const e = get();
+        if (e.feux.includes(id)) return;
+        const feu = FEUX.find((f) => f.id === id)!;
+        set({
+          feux: [...e.feux, id],
+          notifications: [...e.notifications, { id: `feu-${id}`, titre: "Feu de camp découvert", texte: `${feu.nom} · voyage rapide depuis le journal` }],
+        });
+      },
+
+      ouvrirBarriere: (id) => {
+        const e = get();
+        if (!e.barrieres.includes(id)) set({ barrieres: [...e.barrieres, id] });
+      },
+
+      marquerExplore: (cellules) => {
+        if (!bits) return;
+        let change = false;
+        for (const c of cellules) {
+          const octet = c >> 3;
+          const masque = 1 << (c & 7);
+          if (!(bits[octet] & masque)) {
+            bits[octet] |= masque;
+            change = true;
+          }
+        }
+        if (change) set({ explore: encoder(bits) });
+      },
+
+      setFondu: (v) => set({ fondu: v }),
+
+      notifier: (titre, texte) => set({ notifications: [...get().notifications, { id: `msg-${Date.now()}`, titre, texte }] }),
       retirerNotification: (id) => set({ notifications: get().notifications.filter((n) => n.id !== id) }),
 
-      notifier: (titre, texte) =>
-        set({ notifications: [...get().notifications, { id: `msg-${Date.now()}`, titre, texte }] }),
-
-      reinitialiser: () => set({ ...vide, zoneActuelle: null, panneau: null, notifications: [] }),
+      reinitialiser: () => {
+        if (bits) bits.fill(0);
+        set({ ...vide, regionActuelle: null, lieuActuel: null, panneau: null, notifications: [] });
+      },
     }),
     {
-      name: "monde-progression",
-      // Seule la progression est sauvegardée, pas l'état de l'interface.
-      partialize: (e) => ({ zones: e.zones, indices: e.indices, enigmes: e.enigmes, succes: e.succes }),
+      name: "monde-progression-v2",
+      partialize: (e) => ({
+        lieux: e.lieux,
+        indices: e.indices,
+        enigmes: e.enigmes,
+        objets: e.objets,
+        enMain: e.enMain,
+        feux: e.feux,
+        succes: e.succes,
+        explore: e.explore,
+        barrieres: e.barrieres,
+      }),
     },
   ),
 );
 
-/** Liste utile pour l'interface. */
 export const indiceParId = (id: string) => INDICES.find((i) => i.id === id)!;
 export const enigmeParId = (id: string) => ENIGMES.find((e) => e.id === id)!;
+export const objetParId = (id: string) => OBJETS.find((o) => o.id === id)!;
+export const portParId = (id: string) => PORTS.find((p) => p.id === id)!;

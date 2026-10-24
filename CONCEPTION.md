@@ -33,6 +33,80 @@ Pour les images (plan papier, croquis, références), dépose-les dans le dossie
 
 ## 4. Les zones ⭐
 
+### Carte et régions (d'après `references/carte-v1.jpg`)
+
+Règle générale : **toutes les îles s'atteignent en bateau, depuis des ports.**
+
+#### Cité volcanique (marron, nord-ouest)
+- Une cité au pied d'un **volcan, sur l'îlot au nord**.
+- À l'ouest, la longue pointe en forme de corne : lieu de la **bataille de la Corne**, qui
+  opposait la cité volcanique à l'archipel des Atlantes.
+- L'ancre dessinée sur la pointe : un port ?
+- Tout près, la zone de glace la rejoint presque : c'est **le détroit** (nom à trouver, autour
+  du choc des températures).
+
+#### Archipel des Atlantes (gris-vert, sud-ouest)
+- Trois îles **reliées par des ponts suspendus dans le vide**.
+- Le **port** est dans le petit renfoncement au nord de la grande île.
+- Chemin : grande île → île en bas à droite → île du dessus.
+- Ancien ennemi de la cité volcanique (bataille de la Corne).
+
+#### Pic de l'Hippocampe (petite pointe à l'ouest de la zone verte)
+- Désormais **surveillé** pour empêcher de nouvelles batailles entre le volcan et les Atlantes.
+
+#### Les terres libres (vert, centre)
+- Tenues par personne : pas de village, mais « des choses » à découvrir.
+- Touche toutes les régions : c'est le carrefour du continent.
+
+#### Zone de glace (bleu clair, nord-est)
+- Au nord, le **Palais givré**.
+- Près de la petite île, un col fermé par un **mur de givre** (moyen de passer à trouver).
+- La petite île est un **iceberg creux** dans lequel on pourra entrer plus tard.
+- Le détroit avec la cité volcanique (voir plus haut).
+
+#### Forêt des sorcières (violet, sud-ouest du centre)
+- La cité des sorcières obscures.
+- On n'y entre **que par la frontière avec les terres libres** (vert). Tout le reste est couvert
+  par un **sort de brume magique** : impossible d'y accoster par la mer.
+- Le bout qui remonte dans le renfoncement vers la zone verte abrite le **portail vers
+  Scìyolia**.
+
+#### Cité montagneuse et du vent (jaune, sud)
+- Encore peu développée.
+
+#### Région blanche (est)
+- Un village au centre, encore peu développé.
+
+#### Elcres abandonnée (île grise en croissant, nord-est)
+- Une **maladie** a frappé cette partie d'Elcres, qui a été abandonnée (autrefois, il y avait
+  les deux bouts).
+- Accès par un **portail tout au nord du croissant**, qu'il faudra découvrir en résolvant des
+  mystères.
+- D'autres zones viendront en dessous du croissant, collées à lui.
+
+#### Elcres (île en anneau, sud-est)
+- Entourée d'une **muraille naturelle de montagnes** qui empêche quiconque d'entrer.
+- Les Elcrais s'y sont réfugiés pour échapper à la maladie, et ont **assassiné tous les malades
+  potentiels**. Traumatisés, ils ne laissent plus entrer personne dans leur nouvelle cité.
+- Ils maîtrisent l'art de la **transmogrification**. Ils empruntent encore le portail du croissant
+  pour aller chercher des vivres, mais **sous l'apparence d'autres personnes**, pour qu'on ne les
+  reconnaisse pas.
+- Pour y entrer, il faudra trouver l'un de ces Elcrais déguisés et prendre sa place (le voler,
+  le tuer, ou autre : à définir), puis comprendre comment passer.
+
+#### Village blanc (est)
+- **Point de départ du jeu.**
+
+#### Fin du jeu
+- Scìyolia est la dernière énigme : on y comprend tout. On peut y accéder avant la fin, mais il
+  faut des indices de partout pour comprendre quoi y faire.
+
+#### Scìyolia (dans le cadre)
+- Dans **un autre monde**, au décor **galactique**. Accessible uniquement par le portail de la
+  forêt des sorcières (voir l'histoire).
+
+---
+
 Copie ce bloc pour chaque zone.
 
 ### Zone : (nom)
@@ -60,6 +134,35 @@ racontais à quelqu'un, même si le joueur ne la découvrira que par morceaux.
 - **Les personnages ou peuples :**
 - **La chronologie :** (événement 1 → 2 → 3…)
 - **Le grand mystère, et sa réponse :**
+
+Les `[…]` marquent les noms pas encore choisis.
+
+### Scìyolia, la cité disparue
+
+Durant la grande confrontation de l'ère [nom de l'ère], par peur d'être impliqués dans ce
+puissant conflit, les Scìyoliens décidèrent de rassembler les plus puissants mages de la cité
+afin de s'isoler dans un espace inconnu de tous.
+
+La cité disparue, ancien noyau de la magie spatiale, est depuis introuvable. On raconte que le
+seul portail qui y mène se trouverait au cœur de la forêt de [cité des sorcières obscures].
+Mais cette forêt est elle aussi inaccessible, car protégée par un puissant sort.
+
+En échange de cette protection, les Scìyoliens auraient enseigné les bases de la magie spatiale
+aux plus puissantes sorcières de [nom], les seules dont le pouvoir était assez grand pour en
+manier les sorts.
+
+**Sur la carte :** Scìyolia est le territoire dans le cadre (orange), dans un autre monde au
+décor galactique. La forêt des sorcières est la région violette ; le portail est dans son bout
+qui remonte vers la zone verte.
+
+**À préciser :**
+- La grande confrontation : entre qui et qui ? Comment s'est-elle terminée ?
+- Que reste-t-il de Scìyolia aujourd'hui : la cité est-elle vide, ses mages y vivent-ils encore,
+  le temps s'y est-il arrêté ?
+- Le sort qui protège la forêt : qui l'a lancé (les Scìyoliens, les sorcières, les deux) ?
+  Comment le joueur peut-il le briser ou le contourner ?
+- Les sorcières obscures : alliées, ennemies, disparues elles aussi ?
+- Qui est le joueur, et pourquoi cherche-t-il la cité ?
 
 ## 6. Les indices
 
