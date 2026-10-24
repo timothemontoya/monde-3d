@@ -1,0 +1,118 @@
+/* Interface façon Elden Ring : serif gravé, filets dorés, panneaux sombres translucides. */
+:root {
+  --or: #d9b56a;
+  --or-pale: #f1dcaa;
+  --texte: #e9e0cc;
+  --texte-2: #a99f8a;
+  --titre: "Cinzel", "Trajan Pro", Georgia, serif;
+  --corps: "EB Garamond", Georgia, serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; overflow: hidden; background: #000; }
+body { font-family: var(--corps); color: var(--texte); -webkit-font-smoothing: antialiased; }
+canvas { display: block; }
+
+.interface { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+.interface button, .interface input, .interface .panneau, .interface .ecran-titre { pointer-events: auto; }
+
+kbd {
+  font-family: var(--titre); font-size: 0.75em; letter-spacing: 0.05em;
+  border: 1px solid rgba(217, 181, 106, 0.5); border-radius: 3px; padding: 0.1em 0.45em; color: var(--or-pale);
+}
+
+.filet { height: 1px; margin: 1.2rem auto; width: min(420px, 80%);
+  background: linear-gradient(90deg, transparent, var(--or), transparent); }
+
+.bouton {
+  font-family: var(--titre); letter-spacing: 0.12em; font-size: 0.85rem; text-transform: uppercase;
+  color: var(--texte); background: rgba(10, 9, 7, 0.55); border: 1px solid rgba(217, 181, 106, 0.35);
+  padding: 0.75rem 1.4rem; cursor: pointer; transition: border-color 0.3s, color 0.3s, background 0.3s;
+}
+.bouton:hover, .bouton:focus-visible { border-color: var(--or); color: var(--or-pale); background: rgba(40, 30, 12, 0.6); outline: none; }
+.bouton-principal { border-color: var(--or); color: var(--or-pale); }
+
+/* ── Écran titre ─────────────────────────────────────────────── */
+.ecran-titre {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3rem;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.25), rgba(0,0,0,0.75));
+  animation: apparition 1.2s ease;
+}
+.titre-bloc { text-align: center; }
+.sur-titre { font-family: var(--titre); letter-spacing: 0.4em; text-transform: uppercase; font-size: 0.8rem; color: var(--texte-2); margin: 0; }
+.ecran-titre h1 {
+  font-family: var(--titre); font-weight: 400; font-size: clamp(2.6rem, 7vw, 5.5rem); margin: 0.6rem 0 0;
+  color: var(--or-pale); letter-spacing: 0.08em; text-shadow: 0 0 40px rgba(255, 190, 90, 0.35);
+}
+.boutons-secondaires { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1rem; }
+.commandes { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.6rem 1.6rem; justify-content: center;
+  max-width: 760px; color: var(--texte-2); font-size: 0.95rem; }
+.commandes li { display: flex; gap: 0.5rem; align-items: center; }
+
+/* ── En jeu ──────────────────────────────────────────────────── */
+.viseur { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%;
+  background: rgba(255, 240, 210, 0.7); box-shadow: 0 0 6px rgba(0,0,0,0.6); }
+.invite, .message-barriere {
+  position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); padding: 0.7rem 1.4rem;
+  background: linear-gradient(90deg, transparent, rgba(8,7,5,0.75) 20%, rgba(8,7,5,0.75) 80%, transparent);
+  font-size: 1.15rem; white-space: nowrap; animation: apparition 0.4s ease;
+}
+.message-barriere { color: var(--or-pale); font-style: italic; }
+.compteurs { position: absolute; left: 1.5rem; bottom: 1.2rem; display: flex; gap: 1.4rem; font-family: var(--titre);
+  font-size: 0.75rem; letter-spacing: 0.12em; color: var(--texte-2); text-transform: uppercase; }
+.compteurs .aide { opacity: 0.6; }
+
+/* Bannière de zone */
+.banniere { position: absolute; left: 0; right: 0; top: 34%; text-align: center; opacity: 0; transition: opacity 1.4s ease; }
+.banniere.visible { opacity: 1; }
+.banniere-lumiere { position: absolute; left: 50%; top: 50%; width: min(900px, 90vw); height: 120px; transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.55), transparent 70%); }
+.banniere h2 { position: relative; font-family: var(--titre); font-weight: 400; font-size: clamp(2rem, 4.5vw, 3.4rem);
+  color: var(--or-pale); letter-spacing: 0.1em; margin: 0; text-shadow: 0 0 30px rgba(255, 190, 90, 0.4); }
+.banniere p { position: relative; font-family: var(--titre); letter-spacing: 0.35em; text-transform: uppercase; font-size: 0.85rem;
+  color: var(--texte); margin: 0.6rem 0 0; }
+
+/* Notifications (succès, barrières qui s'ouvrent) */
+.notifications { position: absolute; top: 1.4rem; right: 1.4rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.notification { display: flex; flex-direction: column; gap: 0.2rem; min-width: 260px; padding: 0.8rem 1.1rem;
+  background: rgba(10, 9, 7, 0.8); border-left: 2px solid var(--or); animation: glisse 0.6s ease; }
+.notification strong { font-family: var(--titre); font-weight: 400; letter-spacing: 0.08em; color: var(--or-pale); }
+.notification span { color: var(--texte-2); font-size: 0.95rem; }
+
+/* ── Panneaux ────────────────────────────────────────────────── */
+.voile-panneau { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.55); animation: apparition 0.4s ease; }
+.panneau { position: relative; width: min(680px, 92vw); max-height: 82vh; overflow: auto; padding: 2.2rem 2.4rem 2rem;
+  background: linear-gradient(180deg, rgba(20,17,12,0.96), rgba(10,9,7,0.96)); border: 1px solid rgba(217,181,106,0.3); text-align: center; }
+.panneau h2 { font-family: var(--titre); font-weight: 400; color: var(--or-pale); letter-spacing: 0.08em; margin: 0; font-size: 1.6rem; }
+.texte-indice { font-size: 1.2rem; line-height: 1.6; text-align: left; margin: 0 0 1.6rem; }
+.fermer { margin-top: 0.4rem; }
+.formulaire-enigme { display: flex; gap: 0.6rem; justify-content: center; margin-bottom: 1rem; }
+.formulaire-enigme input { font-family: var(--titre); font-size: 1.1rem; letter-spacing: 0.3em; text-align: center; width: 12rem;
+  background: rgba(0,0,0,0.5); color: var(--or-pale); border: 1px solid rgba(217,181,106,0.4); padding: 0.6rem; }
+.formulaire-enigme input:focus { outline: none; border-color: var(--or); }
+.secousse { animation: secousse 0.4s; }
+.erreur { color: #d48a6a; font-style: italic; margin: 0 0 1rem; }
+
+.onglets { display: flex; justify-content: center; gap: 0.4rem; margin-bottom: 1.4rem; }
+.onglets button { font-family: var(--titre); letter-spacing: 0.1em; font-size: 0.8rem; text-transform: uppercase; background: none;
+  border: none; border-bottom: 1px solid transparent; color: var(--texte-2); padding: 0.4rem 0.9rem; cursor: pointer; }
+.onglets button.actif { color: var(--or-pale); border-bottom-color: var(--or); }
+.carnet { text-align: left; }
+.carnet section { margin-bottom: 1.6rem; }
+.carnet h3 { font-family: var(--titre); font-weight: 400; color: var(--or); letter-spacing: 0.08em; font-size: 1.05rem; margin: 0 0 0.6rem;
+  border-bottom: 1px solid rgba(217,181,106,0.2); padding-bottom: 0.3rem; }
+.carnet h3 small { color: var(--texte-2); font-size: 0.75em; margin-left: 0.4rem; }
+.carnet article { margin: 0 0 1rem; }
+.carnet h4 { margin: 0 0 0.2rem; font-size: 1.05rem; color: var(--or-pale); font-weight: 500; }
+.carnet p { margin: 0; line-height: 1.5; }
+.carnet .liens { font-size: 0.9rem; color: var(--texte-2); margin-top: 0.3rem; font-style: italic; }
+.vide { color: var(--texte-2); font-style: italic; }
+.liste-succes { list-style: none; padding: 0; margin: 0; text-align: left; }
+.liste-succes li { display: flex; flex-direction: column; padding: 0.7rem 0; border-bottom: 1px solid rgba(217,181,106,0.12); opacity: 0.5; }
+.liste-succes li.obtenu { opacity: 1; }
+.liste-succes strong { font-family: var(--titre); font-weight: 400; letter-spacing: 0.06em; color: var(--or-pale); }
+.liste-succes span { color: var(--texte-2); }
+
+@keyframes apparition { from { opacity: 0; } to { opacity: 1; } }
+@keyframes glisse { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: none; } }
+@keyframes secousse { 25% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
