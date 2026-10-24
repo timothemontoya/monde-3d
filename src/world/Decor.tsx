@@ -338,8 +338,23 @@ function Lave() {
   );
 }
 
+/** Tache ronde et floue (dégradé radial) : sans elle, les particules sont des carrés. */
+function textureDouce() {
+  const toile = document.createElement("canvas");
+  toile.width = toile.height = 64;
+  const ctx = toile.getContext("2d")!;
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.4, "rgba(255,255,255,0.45)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(toile);
+}
+
 /** Brume magique le long des frontières infranchissables et des côtes de la forêt des sorcières. */
 function BrumesMagiques() {
+  const texture = useMemo(() => textureDouce(), []);
   const geo = useMemo(() => {
     const c = laCarte();
     const ids = REGIONS.map((r) => r.id);
@@ -372,11 +387,11 @@ function BrumesMagiques() {
   }, []);
   const ref = useRef<THREE.Points>(null);
   useFrame((state) => {
-    if (ref.current) (ref.current.material as THREE.PointsMaterial).opacity = 0.32 + Math.sin(state.clock.elapsedTime * 0.7) * 0.06;
+    if (ref.current) (ref.current.material as THREE.PointsMaterial).opacity = 0.3 + Math.sin(state.clock.elapsedTime * 0.7) * 0.06;
   });
   return (
     <points ref={ref} geometry={geo}>
-      <pointsMaterial color="#9a6ad8" size={16} sizeAttenuation transparent opacity={0.35} depthWrite={false} blending={THREE.AdditiveBlending} />
+      <pointsMaterial map={texture} color="#8a5ad0" size={26} sizeAttenuation transparent opacity={0.35} depthWrite={false} blending={THREE.AdditiveBlending} />
     </points>
   );
 }
