@@ -50,8 +50,8 @@ function EcranTitre() {
       <ul className="commandes">
         <li><kbd>Souris</kbd> regarder</li>
         <li><kbd>Z Q S D</kbd> se déplacer</li>
-        <li><kbd>Espace</kbd> / <kbd>Maj</kbd> monter / descendre</li>
-        <li><kbd>Ctrl</kbd> aller vite</li>
+        <li><kbd>Espace</kbd> / <kbd>C</kbd> monter / descendre</li>
+        <li><kbd>Maj</kbd> aller vite</li>
         <li><kbd>E</kbd> examiner</li>
         <li><kbd>Tab</kbd> carnet</li>
         <li><kbd>Échap</kbd> pause</li>
@@ -247,11 +247,16 @@ function Carnet() {
   );
 }
 
+const TOUCHES_NAVIGATEUR = new Set(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Quote", "Slash", "Backquote"]);
+
 /** Raccourcis clavier de l'interface : E pour examiner, Tab pour le carnet, Échap pour fermer. */
 function useRaccourcis() {
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
       const s = useJeu.getState();
+      // En jeu, certaines touches ne doivent pas déclencher d'action du navigateur : Espace et les
+      // flèches font défiler, ' et / ouvrent la recherche rapide de Firefox. (F5, F11… restent libres.)
+      if (s.enJeu && !s.panneau && TOUCHES_NAVIGATEUR.has(e.code)) e.preventDefault();
       if (e.target instanceof HTMLInputElement) {
         if (e.key === "Escape") s.fermer();
         return;

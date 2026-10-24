@@ -9,15 +9,19 @@ import { estOuverte, useJeu } from "../game/store";
 import { distanceBarriere } from "../world/geometrie";
 import { hauteurSol } from "../world/relief";
 
-/** Touches : codes physiques, donc ZQSD en AZERTY et WASD en QWERTY fonctionnent tous les deux. */
+/**
+ * Touches : codes physiques, donc ZQSD en AZERTY et WASD en QWERTY fonctionnent tous les deux.
+ * Pas de Ctrl ni d'Alt : le navigateur réserve leurs combinaisons (Ctrl+Q quitte, Ctrl+D ajoute
+ * un marque-page, Ctrl+W ferme l'onglet…) et une page ne peut pas les bloquer.
+ */
 export const TOUCHES = [
   { name: "avant", keys: ["KeyW", "ArrowUp"] },
   { name: "arriere", keys: ["KeyS", "ArrowDown"] },
   { name: "gauche", keys: ["KeyA", "ArrowLeft"] },
   { name: "droite", keys: ["KeyD", "ArrowRight"] },
   { name: "monter", keys: ["Space"] },
-  { name: "descendre", keys: ["ShiftLeft", "ShiftRight"] },
-  { name: "courir", keys: ["ControlLeft", "ControlRight"] },
+  { name: "descendre", keys: ["KeyC"] },
+  { name: "courir", keys: ["ShiftLeft", "ShiftRight"] },
 ];
 
 /**

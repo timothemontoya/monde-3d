@@ -23,7 +23,7 @@ const SANCTUAIRE: Pos = [250, -20];
 export const REGLAGES = {
   /** Point d'apparition [x, z]. */
   depart: [40, 330] as [number, number],
-  /** Vitesse normale et vitesse en courant (Ctrl), en m/s. */
+  /** Vitesse normale et vitesse rapide (Maj), en m/s. */
   vitesse: 14,
   vitesseRapide: 32,
   /** Hauteur des yeux au-dessus du sol, en m. */
