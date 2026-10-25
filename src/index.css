@@ -59,7 +59,9 @@ kbd {
 }
 .message-barriere { color: var(--or-pale); font-style: italic; }
 .compteurs { position: absolute; left: 1.5rem; bottom: 1.2rem; display: flex; gap: 1.4rem; font-family: var(--titre);
-  font-size: 0.75rem; letter-spacing: 0.12em; color: var(--texte-2); text-transform: uppercase; }
+  font-size: 0.75rem; letter-spacing: 0.12em; color: var(--texte-2); text-transform: uppercase;
+  /* Lisible même sur la neige ou le sable. */
+  text-shadow: 0 0 6px rgba(8,7,5,0.9), 0 1px 2px rgba(8,7,5,0.9); }
 .compteurs .aide { opacity: 0.6; }
 
 /* Bannière de zone */

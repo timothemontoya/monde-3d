@@ -48,6 +48,8 @@ type Etat = Progression & {
   notifications: { id: string; titre: string; texte: string }[];
   /** Écran noir pendant un voyage. */
   fondu: boolean;
+  /** En vol (double Espace), sinon à pied. */
+  vol: boolean;
 
   entrer: () => void;
   sortir: () => void;
@@ -65,6 +67,7 @@ type Etat = Progression & {
   ouvrirBarriere: (id: string) => void;
   marquerExplore: (cellules: number[]) => void;
   setFondu: (v: boolean) => void;
+  setVol: (v: boolean) => void;
   notifier: (titre: string, texte: string) => void;
   retirerNotification: (id: string) => void;
   reinitialiser: () => void;
@@ -147,6 +150,7 @@ export const useJeu = create<Etat>()(
       affiche: null,
       notifications: [],
       fondu: false,
+      vol: false,
 
       entrer: () => set({ enJeu: true }),
       sortir: () => set({ enJeu: false }),
@@ -249,6 +253,9 @@ export const useJeu = create<Etat>()(
       },
 
       setFondu: (v) => set({ fondu: v }),
+      setVol: (v) => {
+        if (get().vol !== v) set({ vol: v });
+      },
 
       notifier: (titre, texte) => set({ notifications: [...get().notifications, { id: `msg-${Date.now()}`, titre, texte }] }),
       retirerNotification: (id) => set({ notifications: get().notifications.filter((n) => n.id !== id) }),

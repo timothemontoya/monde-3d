@@ -3,13 +3,18 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { OBJETS } from "../content/monde";
 import { useJeu } from "../game/store";
+import { Modele } from "../world/modeles";
 
 const METAL = new THREE.MeshStandardMaterial({ color: "#b8923c", metalness: 0.8, roughness: 0.35 });
 const SOMBRE = new THREE.MeshStandardMaterial({ color: "#3a3430", metalness: 0.5, roughness: 0.5 });
 const ROUILLE = new THREE.MeshStandardMaterial({ color: "#a8754c", metalness: 0.45, roughness: 0.6, emissive: "#3a2010", emissiveIntensity: 0.4 });
 
-/** Forme simple de chaque type d'objet (provisoire, à remplacer par des modèles Blender). */
+/** L'objet : son modèle Blender (modeles/objet-<id>.glb), ou une forme provisoire. */
 export function FormeObjet({ id }: { id: string }) {
+  return <Modele modele={`objet-${id}`} provisoire={<FormeProvisoire id={id} />} />;
+}
+
+function FormeProvisoire({ id }: { id: string }) {
   const forme = OBJETS.find((o) => o.id === id)?.forme;
   switch (forme) {
     case "lanterne":

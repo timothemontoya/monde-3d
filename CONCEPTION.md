@@ -35,7 +35,8 @@ Pour les images (plan papier, croquis, références), dépose-les dans le dossie
 
 ### Carte et régions (d'après `references/carte-v1.jpg`)
 
-Règle générale : **toutes les îles s'atteignent en bateau, depuis des ports.**
+Règle générale : **toutes les îles s'atteignent en bateau, depuis des ports**, sauf l'île du
+volcan, qui reste inaccessible (on la voit, on n'y va pas).
 
 #### Cité volcanique (marron, nord-ouest)
 - Une cité au pied d'un **volcan, sur l'îlot au nord**.

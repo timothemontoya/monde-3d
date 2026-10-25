@@ -57,6 +57,8 @@ export type Region = {
   vegetation: Vegetation;
   /** Couleurs du sol : herbe/terre principale et roche. */
   sol: [string, string];
+  /** Neige sur les sommets (au-dessus de 190 m environ). Oui par défaut. */
+  neige?: boolean;
   lore: Lore[];
 };
 
@@ -109,7 +111,10 @@ export type Crete = {
   cols?: { position: Px; largeur: number }[];
 };
 
-/** Frontière infranchissable entre deux régions, matérialisée par une brume magique. */
+/**
+ * Frontière infranchissable entre deux régions (ou une région et la « mer »),
+ * matérialisée par un rideau de brume magique opaque.
+ */
 export type FrontiereMagique = {
   regions: [string, string];
   message: string;
@@ -127,8 +132,40 @@ export type Port = {
   quand?: Condition;
 };
 
-/** Pont suspendu au-dessus du vide (entre deux îles par exemple). */
-export type Pont = { de: Px; a: Px; largeur: number };
+/**
+ * Pont suspendu entre deux terres. On donne un point sur chaque rive (n'importe où sur l'île) :
+ * le moteur relie les deux terres à l'endroit où elles sont le plus proches.
+ */
+export type Pont = { entre: [Px, Px]; largeur: number };
+
+/** Village ou cité : des maisons placées autour d'un centre, sur un sol aplani. */
+export type Village = {
+  id: string;
+  centre: Px;
+  /** Rayon en mètres. */
+  rayon: number;
+  nombre: number;
+  /** Modèles Blender utilisés (voir ASSETS-BLENDER.md), tirés au hasard. */
+  modeles: string[];
+  /** Forme provisoire tant que les modèles n'existent pas : couleurs et taille [largeur, hauteur, profondeur] en m. */
+  substitut: { murs: string; toit: string; taille: [number, number, number] };
+};
+
+/**
+ * Modèle unique posé dans le monde (tour, statue, épave…).
+ * Invisible tant que son fichier n'existe pas dans modeles/.
+ */
+export type DecorUnique = {
+  modele: string;
+  position: Px;
+  /** Direction vers laquelle il fait face, en degrés (0 = est, 90 = sud…). */
+  angle?: number;
+  /** Aplanit le sol sur ce rayon (m) sous le modèle. */
+  plateforme?: number;
+  echelle?: number;
+  /** Le joueur s'y cogne : taille de la boîte de collision [largeur, hauteur, profondeur] en m. */
+  solide?: [number, number, number];
+};
 
 /** Feu de camp : point de repos et de voyage rapide, une fois découvert. */
 export type Feu = { id: string; nom: string; position: Px };

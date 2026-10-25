@@ -1,5 +1,5 @@
 import { createNoise2D } from "simplex-noise";
-import { CRETES, PONTS, REGIONS, VOLCANS } from "../content/monde";
+import { CRETES, REGIONS, VOLCANS } from "../content/monde";
 import type { Px } from "../content/types";
 import { laCarte, MER, versMonde } from "./carte";
 
@@ -17,7 +17,7 @@ export function graine(seed: number) {
 const bruit = createNoise2D(graine(7));
 const bruitCretes = createNoise2D(graine(13));
 
-const smoothstep = (a: number, b: number, x: number) => {
+export const smoothstep = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
@@ -52,11 +52,17 @@ function cretes(x: number, z: number) {
 
 // ─── Grilles de base (une valeur par cellule de carte, lissées) ─────────────
 
-type Grilles = { altitude: Float32Array; amplitude: Float32Array; montagne: Float32Array };
+type Grilles = {
+  altitude: Float32Array;
+  amplitude: Float32Array;
+  montagne: Float32Array;
+  /** 1 en mer (et dans les lacs), 0 sur terre, flouté : 0,5 sur le trait de côte. */
+  mer: Float32Array;
+};
 let grilles: Grilles | null = null;
 
 /** Flou de boîte séparable, répété deux fois (proche d'un flou gaussien). */
-function flouter(g: Float32Array, L: number, H: number, r: number) {
+export function flouter(g: Float32Array, L: number, H: number, r: number) {
   const tmp = new Float32Array(g.length);
   for (let passe = 0; passe < 2; passe++) {
     for (let y = 0; y < H; y++)
@@ -93,8 +99,10 @@ function lesGrilles(): Grilles {
   const altitude = new Float32Array(N);
   const amplitude = new Float32Array(N);
   const montagne = new Float32Array(N);
+  const mer = new Float32Array(N);
   for (let i = 0; i < N; i++) {
     if (c.region[i] === MER) {
+      mer[i] = 1;
       // Le fond marin descend en s'éloignant de la côte.
       altitude[i] = -3 - 14 * smoothstep(0, 5, c.distMer[i]);
       continue;
@@ -109,7 +117,8 @@ function lesGrilles(): Grilles {
   flouter(altitude, c.largeur, c.hauteur, 2);
   flouter(amplitude, c.largeur, c.hauteur, 3);
   flouter(montagne, c.largeur, c.hauteur, 3);
-  grilles = { altitude, amplitude, montagne };
+  flouter(mer, c.largeur, c.hauteur, 1);
+  grilles = { altitude, amplitude, montagne, mer };
   return grilles;
 }
 
@@ -139,12 +148,11 @@ let elements: {
     /** Cols : centre, largeur, et direction de la crête à cet endroit (tx, tz). */
     cols: { x: number; z: number; largeur: number; tx: number; tz: number }[];
   }[];
-  ponts: { ax: number; az: number; bx: number; bz: number; largeur: number; ha: number; hb: number }[];
 } | null = null;
 
 const monde = (p: Px) => versMonde(p);
 
-function distanceSegment(px: number, pz: number, ax: number, az: number, bx: number, bz: number) {
+export function distanceSegment(px: number, pz: number, ax: number, az: number, bx: number, bz: number) {
   const dx = bx - ax;
   const dz = bz - az;
   const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz || 1)));
@@ -179,19 +187,12 @@ function lesElements() {
         }),
       };
     }),
-    ponts: [],
   };
-  // Les ponts relient les deux rives à leur hauteur, un peu au-dessus du sol.
-  elements.ponts = PONTS.map((p) => {
-    const [ax, az] = monde(p.de);
-    const [bx, bz] = monde(p.a);
-    return { ax, az, bx, bz, largeur: p.largeur, ha: terrain(ax, az) + 0.4, hb: terrain(bx, bz) + 0.4 };
-  });
   return elements;
 }
 
-/** Hauteur du terrain (sans les ponts). */
-function terrain(x: number, z: number): number {
+/** Hauteur « naturelle » du terrain, avant aplanissement sous les constructions. */
+function terrainBrut(x: number, z: number): number {
   const g = lesGrilles();
   const amplitude = echantillon(g.amplitude, x, z);
   const montagne = echantillon(g.montagne, x, z);
@@ -200,7 +201,8 @@ function terrain(x: number, z: number): number {
     const doux = (fbm(x / 420, z / 420, 4) + 1) * 0.5;
     const dur = cretes(x / 520, z / 520);
     h += amplitude * (doux * (1 - montagne) + dur * montagne);
-    h += fbm(x / 45, z / 45, 2) * Math.min(3, amplitude * 0.1);
+    // Petites ondulations du sol (assez larges pour ne pas facetter la lumière rasante).
+    h += fbm(x / 80, z / 80, 2) * Math.min(2.5, amplitude * 0.08);
   }
 
   const e = lesElements();
@@ -224,29 +226,132 @@ function terrain(x: number, z: number): number {
     }
     h += crete;
   }
-  return h;
+
+  // Le trait de côte de la carte fait loi : le fond marin reste sous l'eau (même au pied du volcan
+  // ou d'une falaise), la terre au-dessus. Ce qu'on voit correspond à ce qu'on peut parcourir.
+  const m = echantillon(g.mer, x, z);
+  if (m > 0.5) return Math.min(h, 0.6 - 7 * smoothstep(0.5, 1, m));
+  return Math.max(h, 0.6 + 0.8 * smoothstep(0.5, 0, m));
+}
+
+// ─── Plateformes : sol aplani sous les maisons, ports, feux… ───────────────
+
+export type Plateforme = {
+  x: number;
+  z: number;
+  /** Rayon parfaitement plat, en m. */
+  rayon: number;
+  /** Largeur du raccord en pente douce autour, en m. */
+  fondu: number;
+  hauteur: number;
+  /** Ne fait que creuser, sans jamais remblayer (un quai abaisse la côte, mais la mer reste la mer). */
+  abaisser?: boolean;
+};
+
+const CASE = 64;
+const cle = (cx: number, cz: number) => cx * 100003 + cz;
+let index = new Map<number, Plateforme[]>();
+
+/** Enregistre les plateformes (appelé une fois par le plan, avant de construire le terrain). */
+export function definirPlateformes(liste: Plateforme[]) {
+  index = new Map();
+  for (const p of liste) {
+    const r = p.rayon + p.fondu;
+    for (let cx = Math.floor((p.x - r) / CASE); cx <= Math.floor((p.x + r) / CASE); cx++)
+      for (let cz = Math.floor((p.z - r) / CASE); cz <= Math.floor((p.z + r) / CASE); cz++) {
+        const k = cle(cx, cz);
+        const l = index.get(k) ?? [];
+        l.push(p);
+        index.set(k, l);
+      }
+  }
+}
+
+const plateformesPres = (x: number, z: number) => index.get(cle(Math.floor(x / CASE), Math.floor(z / CASE)));
+
+/** Vrai si (x, z) est sur une plateforme (ou à moins de `marge` m de son bord plat). */
+export function surPlateforme(x: number, z: number, marge = 0) {
+  const l = plateformesPres(x, z);
+  return !!l?.some((p) => Math.hypot(x - p.x, z - p.z) < p.rayon + marge);
+}
+
+/** Hauteur du terrain : le relief naturel, aplani sous les constructions. */
+function terrain(x: number, z: number): number {
+  const h = terrainBrut(x, z);
+  const l = plateformesPres(x, z);
+  if (!l) return h;
+  // Des plateformes voisines (maisons) peuvent se chevaucher : la plus proche domine nettement
+  // (poids t⁶), ce qui garde chaque sol bien plat sans marche entre elles.
+  let somme = 0;
+  let poids = 0;
+  let tMax = 0;
+  let creux = Infinity;
+  for (const p of l) {
+    const d = Math.hypot(x - p.x, z - p.z);
+    if (d >= p.rayon + p.fondu) continue;
+    const t = 1 - smoothstep(p.rayon, p.rayon + p.fondu, d);
+    if (p.abaisser) {
+      creux = Math.min(creux, h + Math.min(0, p.hauteur - h) * t);
+      continue;
+    }
+    const w = t ** 6;
+    somme += w * p.hauteur;
+    poids += w;
+    tMax = Math.max(tMax, t);
+  }
+  return Math.min(creux, poids ? h + (somme / poids - h) * tMax : h);
+}
+
+// ─── Ponts ──────────────────────────────────────────────────────────────────
+
+export type PontPlace = {
+  ax: number;
+  az: number;
+  bx: number;
+  bz: number;
+  largeur: number;
+  /** Hauteur du tablier à chaque bout. */
+  ha: number;
+  hb: number;
+  /** Affaissement au milieu, en m. */
+  creux: number;
+};
+let ponts: PontPlace[] = [];
+
+/** Enregistre les ponts (appelé par le plan). */
+export function definirPonts(liste: PontPlace[]) {
+  ponts = liste;
 }
 
 /** Hauteur du tablier d'un pont à cette position, ou null si l'on n'est pas sur un pont. */
 export function hauteurPont(x: number, z: number): number | null {
-  for (const p of lesElements().ponts) {
+  for (const p of ponts) {
     const { d, t } = distanceSegment(x, z, p.ax, p.az, p.bx, p.bz);
     if (d > p.largeur / 2) continue;
     // Le pont s'affaisse un peu au milieu.
-    return p.ha + (p.hb - p.ha) * t - Math.sin(t * Math.PI) * 1.2;
+    return p.ha + (p.hb - p.ha) * t - Math.sin(t * Math.PI) * p.creux;
   }
   return null;
 }
 
-/** Hauteur du sol sous les pieds : terrain, ou tablier de pont. Utilisée pour plafonner le vol. */
+/** Hauteur du sol sous les pieds : terrain, ou tablier de pont. */
 export function hauteurSol(x: number, z: number): number {
   const h = terrain(x, z);
   const pont = hauteurPont(x, z);
   return pont !== null ? Math.max(h, pont) : h;
 }
 
-/** Hauteur du terrain seul (pour dessiner le sol). */
+/** Hauteur du terrain seul (pour dessiner le sol et poser le décor). */
 export const hauteurTerrain = terrain;
+/** Hauteur avant aplanissement (pour calculer les plateformes). */
+export const hauteurBrute = terrainBrut;
+
+/** Pente du terrain (mètres de dénivelé par mètre) autour d'un point. */
+export function pente(x: number, z: number, d = 3) {
+  const gx = (terrain(x + d, z) - terrain(x - d, z)) / (2 * d);
+  const gz = (terrain(x, z + d) - terrain(x, z - d)) / (2 * d);
+  return Math.hypot(gx, gz);
+}
 
 /** Hauteur de la surface de l'eau. */
 export const NIVEAU_MER = 0;

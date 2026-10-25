@@ -3,7 +3,8 @@ import { INDICES, LIEUX, OBJETS, REGIONS, SUCCES, USAGES } from "../content/mond
 import { positionJoueur } from "../game/joueur";
 import { enigmeParId, indiceParId, normaliser, objetParId, portParId, remplie, useJeu } from "../game/store";
 import { capturerSouris, teleporterVers } from "../player/Joueur";
-import { surTerre } from "../world/carte";
+import { versMonde } from "../world/carte";
+import { lePlan } from "../world/plan";
 import { MiniCarte } from "./Carte";
 import { EspecesDuLieu, Journal, Paragraphes } from "./Journal";
 
@@ -54,7 +55,8 @@ function EcranTitre() {
       <ul className="commandes">
         <li><kbd>Souris</kbd> regarder</li>
         <li><kbd>Z Q S D</kbd> se déplacer</li>
-        <li><kbd>Espace</kbd> / <kbd>C</kbd> monter / descendre</li>
+        <li><kbd>Espace</kbd> sauter · deux fois : voler</li>
+        <li><kbd>Espace</kbd> / <kbd>C</kbd> en vol : monter / descendre</li>
         <li><kbd>Maj</kbd> aller vite</li>
         <li><kbd>E</kbd> examiner, ramasser</li>
         <li><kbd>1</kbd>…<kbd>8</kbd> prendre un objet en main</li>
@@ -147,7 +149,7 @@ function BarreObjets() {
 }
 
 function ATH() {
-  const { cible, message, indices, succes, enMain } = useJeu();
+  const { cible, message, indices, succes, enMain, vol } = useJeu();
   let libelle: string | null = null;
   if (cible?.type === "indice") libelle = `${indices.includes(cible.id) ? "Relire" : "Examiner"} · ${indiceParId(cible.id).titre}`;
   if (cible?.type === "enigme") libelle = `Examiner · ${enigmeParId(cible.id).titre}`;
@@ -176,6 +178,7 @@ function ATH() {
             <kbd>F</kbd> utiliser · {objetParId(enMain).nom}
           </span>
         )}
+        {vol && <span>En vol · <kbd>C</kbd> pour se poser</span>}
         <span className="aide">Tab · journal</span>
       </div>
     </>
@@ -248,7 +251,8 @@ function Voyage({ id }: { id: string }) {
     etat.setFondu(true);
     etat.fermer();
     capturerSouris();
-    setTimeout(() => teleporterVers(arrivee.position), 900);
+    const quai = lePlan().ports[dest];
+    setTimeout(() => teleporterVers(quai.x, quai.z), 900);
     setTimeout(() => {
       etat.setFondu(false);
       etat.notifier(arrivee.nom, "Le bateau te dépose à quai.");
@@ -278,7 +282,7 @@ function utiliserObjet() {
   if (!s.enMain) return;
   const usage = USAGES.find((u) => {
     if (u.objet !== s.enMain) return false;
-    const [x, z] = surTerre(u.position);
+    const [x, z] = versMonde(u.position);
     return Math.hypot(positionJoueur.x - x, positionJoueur.z - z) < u.rayon;
   });
   if (usage) {

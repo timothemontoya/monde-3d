@@ -7,13 +7,14 @@
 //    - le cadre en haut à droite (Scìyolia) est ignoré : c'est un autre monde
 //  Pour changer la forme du monde, il suffit de remplacer l'image.
 //
-//  Toutes les positions sont en PIXELS DE LA CARTE. 1 pixel = 2,5 m dans le jeu.
+//  Toutes les positions sont en PIXELS DE LA CARTE. 1 pixel = 4 m dans le jeu.
 //  Les éléments marqués « PROVISOIRE » servent à tester : remplace-les par ton histoire.
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type {
   Barriere,
   Crete,
+  DecorUnique,
   Enigme,
   Espece,
   Feu,
@@ -27,6 +28,7 @@ import type {
   Region,
   Succes,
   Usage,
+  Village,
   Volcan,
 } from "./types";
 
@@ -34,11 +36,11 @@ export const REGLAGES = {
   /** Image de la carte (dans public/). */
   carte: "carte.jpg",
   /** Mètres par pixel de carte : règle la taille du monde. */
-  metresParPixel: 2.5,
+  metresParPixel: 4,
   /** Cadre à ignorer sur la carte (Scìyolia) : [x, y, largeur, hauteur] en pixels. */
   ignorer: [1385, 0, 535, 415] as [number, number, number, number],
-  /** Point de départ (village blanc). */
-  depart: [1000, 640] as [number, number],
+  /** Point de départ (village blanc), un peu au sud du feu de camp. */
+  depart: [1000, 645] as [number, number],
   /** Vitesse normale et rapide (Maj), en m/s. */
   vitesse: 16,
   vitesseRapide: 45,
@@ -48,7 +50,7 @@ export const REGLAGES = {
   /** Pente maximale qu'on peut gravir (mètres de montée par mètre parcouru). Au-delà : falaise. */
   penteMax: 1.6,
   /** Distance qu'on peut faire dans l'eau depuis la côte, en m. Au-delà, il faut un bateau. */
-  eauMax: 12,
+  eauMax: 16,
 };
 
 // ─── Régions (une par couleur de la carte) ──────────────────────────────────
@@ -89,6 +91,7 @@ export const REGIONS: Region[] = [
     ambiance: { brume: "#8a5a48", densite: 0.0028, lumiere: "#ffb27a" },
     vegetation: "arbres-morts",
     sol: ["#4a3b36", "#2c2626"],
+    neige: false,
     lore: [
       { texte: "Une cité bâtie dans l'ombre du volcan, sur l'île au nord." },
       { texte: "Elle affronta l'archipel des Atlantes lors de la bataille de la Corne.", quand: { lieux: ["bataille-corne"] } },
@@ -104,6 +107,7 @@ export const REGIONS: Region[] = [
     ambiance: { brume: "#7a4a3a", densite: 0.0035, lumiere: "#ff9a5a" },
     vegetation: "aucune",
     sol: ["#3a2e2a", "#221c1c"],
+    neige: false,
     lore: [{ texte: "Le volcan qui fait vivre la cité, et qui pourrait la détruire." }],
   },
   {
@@ -138,9 +142,9 @@ export const REGIONS: Region[] = [
     couleur: "#834d7f",
     sousTitre: "La cité des sorcières obscures",
     relief: { altitude: 8, amplitude: 7, montagne: 0.05 },
-    ambiance: { brume: "#4b3a5c", densite: 0.0045, lumiere: "#c9a8ff" },
+    ambiance: { brume: "#4b3d60", densite: 0.0062, lumiere: "#c4a8f4" },
     vegetation: "foret-sombre",
-    sol: ["#3d3a2a", "#4a4250"],
+    sol: ["#4d4a34", "#57505f"],
     lore: [
       { texte: "Une forêt où la lumière peine à entrer. Ses côtes sont noyées sous une brume magique." },
       {
@@ -154,7 +158,7 @@ export const REGIONS: Region[] = [
     nom: "La Cité des montagnes et du vent",
     couleur: "#f7f294",
     sousTitre: "Là où le vent décide",
-    relief: { altitude: 45, amplitude: 95, montagne: 0.85 },
+    relief: { altitude: 50, amplitude: 125, montagne: 0.85 },
     ambiance: { brume: "#e2d6b0", densite: 0.0015, lumiere: "#fff0c8" },
     vegetation: "rochers",
     sol: ["#b3a56a", "#9a9284"],
@@ -207,7 +211,7 @@ export const REGIONS: Region[] = [
     nom: "La Muraille d'Elcres",
     couleur: "#c7c7c7",
     sousTitre: "Personne n'entre",
-    relief: { altitude: 170, amplitude: 50, montagne: 1 },
+    relief: { altitude: 200, amplitude: 55, montagne: 1 },
     ambiance: { brume: "#a7a8a2", densite: 0.0026, lumiere: "#e6e2d4" },
     vegetation: "rochers",
     sol: ["#8a8780", "#6f6c66"],
@@ -223,7 +227,7 @@ export const LIEUX: Lieu[] = [
     nom: "La Corne",
     sousTitre: "Champ de bataille",
     position: [140, 240],
-    rayon: 160,
+    rayon: 260,
     lore: [{ texte: "Ici s'affrontèrent la cité volcanique et les Atlantes." }],
   },
   {
@@ -231,7 +235,7 @@ export const LIEUX: Lieu[] = [
     nom: "Le Pic de l'Hippocampe",
     sousTitre: "Sous surveillance",
     position: [215, 415],
-    rayon: 140,
+    rayon: 220,
     lore: [{ texte: "Désormais surveillé, pour que le volcan et les Atlantes ne s'affrontent plus jamais." }],
   },
   {
@@ -239,7 +243,7 @@ export const LIEUX: Lieu[] = [
     nom: "Le Détroit",
     sousTitre: "Là où le feu touche la glace",
     position: [608, 92],
-    rayon: 90,
+    rayon: 150,
     lore: [{ texte: "La cité volcanique et les terres de glace s'y touchent presque. L'air y change sans cesse de température." }],
   },
   {
@@ -247,7 +251,7 @@ export const LIEUX: Lieu[] = [
     nom: "Le Palais givré",
     sousTitre: "Au bout du froid",
     position: [880, 85],
-    rayon: 120,
+    rayon: 190,
     lore: [{ texte: "Un palais de glace, tout au nord." }],
   },
   {
@@ -255,7 +259,7 @@ export const LIEUX: Lieu[] = [
     nom: "Le Col du givre",
     sousTitre: "Fermé par la glace",
     position: [852, 248],
-    rayon: 70,
+    rayon: 110,
     lore: [{ texte: "Un mur de givre barre le seul passage vers le nord." }],
   },
   {
@@ -263,7 +267,7 @@ export const LIEUX: Lieu[] = [
     nom: "Le Portail éteint",
     sousTitre: "Vers Scìyolia ?",
     position: [528, 458],
-    rayon: 60,
+    rayon: 100,
     lore: [{ texte: "Un portail de pierre au cœur de la forêt. Il ne mène nulle part… pour l'instant." }],
   },
 ];
@@ -289,7 +293,7 @@ export const ESPECES: Espece[] = [
 
 // ─── Reliefs et passages ────────────────────────────────────────────────────
 
-export const VOLCANS: Volcan[] = [{ position: [440, 58], hauteur: 240, rayon: 230 }];
+export const VOLCANS: Volcan[] = [{ position: [440, 58], hauteur: 300, rayon: 370 }];
 
 export const CRETES: Crete[] = [
   {
@@ -301,17 +305,22 @@ export const CRETES: Crete[] = [
       [905, 215],
       [960, 190],
     ],
-    hauteur: 110,
-    largeur: 70,
-    cols: [{ position: [852, 244], largeur: 34 }],
+    hauteur: 150,
+    largeur: 110,
+    cols: [{ position: [852, 244], largeur: 52 }],
   },
 ];
 
 export const FRONTIERES_MAGIQUES: FrontiereMagique[] = [
+  // On n'entre dans la forêt des sorcières que par les terres libres : partout ailleurs,
+  // un rideau de brume opaque (côté montagne comme côté mer).
   {
-    // On n'entre dans la forêt des sorcières que par les terres libres.
     regions: ["foret-sorcieres", "montagne-vent"],
     message: "Une brume magique repousse chacun de tes pas.",
+  },
+  {
+    regions: ["foret-sorcieres", "mer"],
+    message: "La brume magique t'empêche d'accoster.",
   },
 ];
 
@@ -322,7 +331,7 @@ export const BARRIERES: Barriere[] = [
     position: [852, 244],
     // Face au nord-ouest : perpendiculaire à la crête.
     angle: 244,
-    largeur: 36,
+    largeur: 56,
     message: "Un mur de givre épais. Peut-être qu'une chaleur suffisante le ferait fondre…",
     // PROVISOIRE : il faut tenir la braise du volcan en main.
     condition: { objetEnMain: "braise" },
@@ -332,19 +341,77 @@ export const BARRIERES: Barriere[] = [
 // ─── Voyages ────────────────────────────────────────────────────────────────
 
 export const PORTS: Port[] = [
-  { id: "port-corne", nom: "Port de la Corne", position: [150, 172], destinations: ["port-atlantes", "port-volcan"] },
+  // L'île du volcan n'a pas de port : on ne l'atteint pas.
+  { id: "port-corne", nom: "Port de la Corne", position: [150, 172], destinations: ["port-atlantes"] },
   { id: "port-atlantes", nom: "Port des Atlantes", position: [233, 652], destinations: ["port-corne"] },
-  { id: "port-volcan", nom: "Débarcadère du volcan", position: [432, 108], destinations: ["port-corne"] },
 ];
 
 export const PONTS: Pont[] = [
   // Archipel des Atlantes : grande île → île en bas à droite → île du dessus.
-  { de: [268, 868], a: [300, 880], largeur: 4 },
-  { de: [318, 838], a: [334, 806], largeur: 4 },
+  // Un point sur chaque île suffit : le pont relie les deux rives là où elles sont le plus proches.
+  { entre: [[200, 800], [300, 900]], largeur: 4 },
+  { entre: [[300, 900], [345, 770]], largeur: 4 },
+];
+
+// ─── Villages et cités ──────────────────────────────────────────────────────
+
+export const VILLAGES: Village[] = [
+  {
+    id: "village-blanc",
+    centre: [1000, 625],
+    rayon: 150,
+    nombre: 14,
+    modeles: ["maison-village-1", "maison-village-2", "maison-village-3"],
+    substitut: { murs: "#d8cfbd", toit: "#7a4a32", taille: [10, 7, 8] },
+  },
+  {
+    id: "cite-volcanique",
+    centre: [420, 235],
+    rayon: 210,
+    nombre: 18,
+    modeles: ["maison-volcan-1", "maison-volcan-2"],
+    substitut: { murs: "#3d3330", toit: "#5c2c1e", taille: [11, 8, 9] },
+  },
+  {
+    id: "hameau-atlante",
+    centre: [205, 745],
+    rayon: 170,
+    nombre: 12,
+    modeles: ["maison-atlante-1", "maison-atlante-2"],
+    substitut: { murs: "#e8e6dc", toit: "#4f7f86", taille: [9, 7, 9] },
+  },
+  {
+    id: "cite-du-vent",
+    centre: [860, 805],
+    rayon: 190,
+    nombre: 14,
+    modeles: ["maison-vent-1", "maison-vent-2"],
+    substitut: { murs: "#c8b892", toit: "#8a6a3a", taille: [8, 9, 8] },
+  },
+  {
+    id: "campement-sorcieres",
+    centre: [600, 690],
+    rayon: 160,
+    nombre: 10,
+    modeles: ["hutte-sorciere-1", "hutte-sorciere-2"],
+    substitut: { murs: "#3a2e3c", toit: "#2a2230", taille: [7, 6, 7] },
+  },
+];
+
+/**
+ * Modèles uniques à poser : invisibles tant que leur fichier n'existe pas (voir ASSETS-BLENDER.md).
+ * angle : direction de la façade (0 = est, 90 = sud, 180 = ouest, 270 = nord) · plateforme : rayon
+ * de sol aplani (m) · solide : boîte de collision [largeur, hauteur, profondeur] (m) · echelle.
+ */
+export const DECORS: DecorUnique[] = [
+  { modele: "tour-guet", position: [232, 408], angle: 180, plateforme: 9, solide: [6, 18, 6] },
+  { modele: "statue-hippocampe", position: [205, 418], angle: 180, plateforme: 6, solide: [3, 6, 3] },
+  { modele: "epave-corne", position: [118, 262], angle: 40, solide: [5, 4, 16] },
+  { modele: "etendard-corne", position: [150, 225] },
 ];
 
 export const FEUX: Feu[] = [
-  { id: "feu-village", nom: "Village blanc", position: [1000, 655] },
+  { id: "feu-village", nom: "Village blanc", position: [1000, 640] },
   { id: "feu-terres", nom: "Terres libres", position: [700, 470] },
   { id: "feu-volcan", nom: "Cité volcanique", position: [430, 250] },
   { id: "feu-glace", nom: "Terres de glace", position: [830, 400] },

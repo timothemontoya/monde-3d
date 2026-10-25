@@ -25,6 +25,10 @@ export type Carte = {
   distTerre: Uint16Array;
   /** Distance à la terre (cellules), pour la mer. */
   distMer: Uint16Array;
+  /** Numéro de l'île (morceau de terre d'un seul tenant) de chaque cellule, -1 en mer. */
+  ile: Int32Array;
+  /** 1 pour la mer ouverte (reliée au bord), 0 ailleurs (terres et lacs). */
+  ocean: Uint8Array;
   /** Taille de l'image source, en pixels. */
   image: { largeur: number; hauteur: number };
 };
@@ -295,6 +299,19 @@ export async function chargerCarte(): Promise<Carte> {
   const distTerre = distances(L, H, (i) => region[i] === MER, (i) => region[i] !== MER);
   const distMer = distances(L, H, (i) => region[i] !== MER, (i) => region[i] === MER);
 
+  // 7. Îles : morceaux de terre d'un seul tenant (pour relier les ponts).
+  const ile = composantes(L, H, (i) => region[i] !== MER);
+
+  // 8. Mer ouverte : l'eau reliée au bord de l'image (le reste, ce sont des lacs).
+  const reliee = distances(
+    L,
+    H,
+    (i) => region[i] === MER && (i % L === 0 || i < L || i % L === L - 1 || i >= N - L),
+    (i) => region[i] === MER,
+  );
+  const ocean = new Uint8Array(N);
+  for (let i = 0; i < N; i++) ocean[i] = reliee[i] !== 65535 ? 1 : 0;
+
   carte = {
     largeur: L,
     hauteur: H,
@@ -302,31 +319,11 @@ export async function chargerCarte(): Promise<Carte> {
     region,
     distTerre,
     distMer,
+    ile,
+    ocean,
     image: { largeur: toile.width, hauteur: toile.height },
   };
   return carte;
-}
-
-/**
- * Ramène une position sur la terre la plus proche (utile si un port ou un feu a été placé
- * un peu à côté de la côte sur la carte). Renvoie des mètres.
- */
-export function surTerre(p: Px): [number, number] {
-  const c = laCarte();
-  const [x, z] = versMonde(p);
-  if (regionA(x, z) !== MER) return [x, z];
-  const [cx0, cy0] = cellule(x, z);
-  for (let r = 1; r < 40; r++)
-    for (let dy = -r; dy <= r; dy++)
-      for (let dx = -r; dx <= r; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-        const nx = cx0 + dx;
-        const ny = cy0 + dy;
-        if (nx < 0 || ny < 0 || nx >= c.largeur || ny >= c.hauteur) continue;
-        if (c.region[ny * c.largeur + nx] === MER) continue;
-        return [(nx + 0.5 - c.largeur / 2) * c.pas, (ny + 0.5 - c.hauteur / 2) * c.pas];
-      }
-  return [x, z];
 }
 
 /** Bornes du monde, en mètres. */
@@ -358,4 +355,18 @@ export function carteComprise(): string {
   }
   ctx.putImageData(img, 0, 0);
   return toile.toDataURL();
+}
+
+/** Indice de la cellule à la position (x, z), ou -1 hors carte. */
+export function indiceCellule(x: number, z: number): number {
+  const c = laCarte();
+  const [cx, cy] = cellule(x, z);
+  if (cx < 0 || cy < 0 || cx >= c.largeur || cy >= c.hauteur) return -1;
+  return cy * c.largeur + cx;
+}
+
+/** Centre d'une cellule, en mètres. */
+export function centreCellule(i: number): [number, number] {
+  const c = laCarte();
+  return [((i % c.largeur) + 0.5 - c.largeur / 2) * c.pas, (Math.floor(i / c.largeur) + 0.5 - c.hauteur / 2) * c.pas];
 }

@@ -4,8 +4,16 @@ import * as THREE from "three";
 import { REGIONS } from "../content/monde";
 import { useJeu } from "../game/store";
 
-/** Direction du soleil : bas sur l'horizon, lumière rasante et dorée. */
-export const SOLEIL = new THREE.Vector3(-0.55, 0.1, -0.8).normalize();
+/** Direction du soleil : assez bas pour une lumière dorée, assez haut pour des ombres nettes. */
+export const SOLEIL = new THREE.Vector3(-0.55, 0.45, -0.8).normalize();
+
+/** Demi-côté de la zone d'ombres autour du joueur, en m, et résolution de la carte d'ombres. */
+const OMBRE = 75;
+const RESOLUTION_OMBRE = 2048;
+// Repère de la lumière : les ombres sont calées sur sa grille de texels (pas de scintillement en marchant).
+const DROITE_SOLEIL = new THREE.Vector3(0, 1, 0).cross(SOLEIL).normalize();
+const HAUT_SOLEIL = SOLEIL.clone().cross(DROITE_SOLEIL).normalize();
+const TEXEL = (OMBRE * 2) / RESOLUTION_OMBRE;
 
 /** Ambiance en mer et hors des régions. */
 const AMBIANCE_HORS_ZONE = { brume: "#c9b796", densite: 0.0016, lumiere: "#ffd49a" };
@@ -59,6 +67,7 @@ export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
   const ciel = useRef<THREE.Mesh>(null);
   const zone = useJeu((s) => s.regionActuelle);
   const materiau = useMemo(() => materiauCiel(), []);
+  const cale = useMemo(() => new THREE.Vector3(), []);
 
   const brume = useMemo(() => {
     const f = new THREE.FogExp2(AMBIANCE_HORS_ZONE.brume, AMBIANCE_HORS_ZONE.densite);
@@ -81,9 +90,12 @@ export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
     if (soleil.current) {
       soleil.current.color.lerp(cible.lumiere, k);
       materiau.uniforms.uSoleil.value.copy(soleil.current.color);
-      // L'ombre suit le joueur : seule une zone autour de lui est calculée.
-      soleil.current.position.set(cam.x + SOLEIL.x * 200, cam.y + SOLEIL.y * 200, cam.z + SOLEIL.z * 200);
-      soleil.current.target.position.set(cam.x, cam.y, cam.z);
+      // L'ombre suit le joueur : seule une zone autour de lui est calculée, calée sur la grille des texels.
+      const d = Math.round(cam.dot(DROITE_SOLEIL) / TEXEL) * TEXEL;
+      const h = Math.round(cam.dot(HAUT_SOLEIL) / TEXEL) * TEXEL;
+      cale.copy(DROITE_SOLEIL).multiplyScalar(d).addScaledVector(HAUT_SOLEIL, h).addScaledVector(SOLEIL, cam.dot(SOLEIL));
+      soleil.current.position.copy(cale).addScaledVector(SOLEIL, 300);
+      soleil.current.target.position.copy(cale);
       soleil.current.target.updateMatrixWorld();
     }
   });
@@ -99,13 +111,15 @@ export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
         intensity={3.2}
         color={AMBIANCE_HORS_ZONE.lumiere}
         castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-90}
-        shadow-camera-right={90}
-        shadow-camera-top={90}
-        shadow-camera-bottom={-90}
-        shadow-camera-far={500}
-        shadow-bias={-0.0004}
+        shadow-mapSize={[RESOLUTION_OMBRE, RESOLUTION_OMBRE]}
+        shadow-camera-left={-OMBRE}
+        shadow-camera-right={OMBRE}
+        shadow-camera-top={OMBRE}
+        shadow-camera-bottom={-OMBRE}
+        shadow-camera-near={1}
+        shadow-camera-far={700}
+        shadow-bias={-0.0002}
+        shadow-normalBias={0.05}
       />
     </>
   );

@@ -4,13 +4,14 @@ import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from "@re
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { PointerLockControls as PLC } from "three-stdlib";
-import { BARRIERES, ENIGMES, FEUX, FRONTIERES_MAGIQUES, INDICES, LIEUX, PORTS, RAMASSABLES, REGIONS, REGLAGES } from "../content/monde";
-import type { Px } from "../content/types";
+import { BARRIERES, FRONTIERES_MAGIQUES, LIEUX, REGIONS, REGLAGES } from "../content/monde";
 import { positionJoueur } from "../game/joueur";
 import { barriereOuverte, lesExplorees, remplie, useJeu, type Cible } from "../game/store";
-import { distanceEnMer, laCarte, MER, regionA, surTerre, versMonde } from "../world/carte";
+import { distanceEnMer, indiceCellule, laCarte, MER, regionA, versMonde } from "../world/carte";
 import { distanceBarriere } from "../world/geometrie";
+import { lePlan, terreFerme } from "../world/plan";
 import { hauteurPont, hauteurSol, NIVEAU_MER } from "../world/relief";
+import { prechaufferTerrain } from "../world/Terrain";
 
 /**
  * Touches : codes physiques, donc ZQSD en AZERTY et WASD en QWERTY fonctionnent tous les deux.
@@ -31,21 +32,38 @@ export const TOUCHES = [
 let capture: () => void = () => {};
 export const capturerSouris = () => capture();
 
-/** Déplace le joueur (voyage en bateau, feu de camp…). Position en pixels de carte. */
-let teleport: (p: Px) => void = () => {};
-export const teleporterVers = (p: Px) => teleport(p);
+/** Déplace le joueur (voyage en bateau, feu de camp…). Position en mètres. */
+let teleport: (x: number, z: number) => void = () => {};
+export const teleporterVers = (x: number, z: number) => teleport(x, z);
 
 const RAYON = 0.5;
 const DEMI_HAUTEUR = 0.6;
 /** Distance à laquelle on peut activer un objet. */
 const PORTEE = 4;
 /** Rayon d'exploration (brouillard de la carte), en m. */
-const VUE = 140;
+const VUE = 160;
+const GRAVITE = 28;
+/** Vitesse de saut, en m/s (environ 1,1 m de haut). */
+const SAUT = 8;
+/** Deux appuis sur Espace plus rapprochés que ça (ms) : on s'envole, ou on se laisse retomber. */
+const DOUBLE_APPUI = 300;
+/** Pente à partir de laquelle on ralentit (le maximum franchissable est REGLAGES.penteMax). */
+const PENTE_LENTE = 0.5;
 
 const IDS_REGIONS = REGIONS.map((r) => r.id);
+/** Zone d'un lac (pour les frontières, les lacs ne sont pas « la mer »). */
+const LAC = 256;
 
 /** Sol sous les pieds, en tenant compte de l'eau (on marche « dans » l'eau peu profonde). */
 const sol = (x: number, z: number) => Math.max(hauteurSol(x, z), NIVEAU_MER - 0.6);
+
+/** Région à cet endroit, « MER » pour la mer ouverte, « LAC » pour un lac. */
+function zone(x: number, z: number) {
+  const r = regionA(x, z);
+  if (r !== MER) return r;
+  const i = indiceCellule(x, z);
+  return i < 0 || laCarte().ocean[i] ? MER : LAC;
+}
 
 export function Joueur() {
   const corps = useRef<RapierRigidBody>(null);
@@ -56,9 +74,16 @@ export function Joueur() {
   const panneau = useJeu((s) => s.panneau);
 
   const depart = useMemo(() => {
-    const [x, z] = surTerre(REGLAGES.depart);
-    return new THREE.Vector3(x, sol(x, z) + REGLAGES.hauteurYeux + 1, z);
+    const d = lePlan().depart;
+    return new THREE.Vector3(d.x, sol(d.x, d.z) + REGLAGES.hauteurYeux, d.z);
   }, []);
+
+  /** Vitesse verticale, vol, contact avec le sol, dernier appui sur Espace, hauteur lissée de la caméra. */
+  const vy = useRef(0);
+  const vol = useRef(false);
+  const auSol = useRef(true);
+  const espace = useRef({ avant: false, dernier: 0 });
+  const camY = useRef(depart.y);
 
   // Contrôleur de personnage : glisse le long des murs. Créé dans un effet pour survivre
   // au double montage de React en développement.
@@ -74,44 +99,57 @@ export function Joueur() {
     };
   }, [world]);
 
+  const voler = (v: boolean) => {
+    vol.current = v;
+    useJeu.getState().setVol(v);
+  };
+
   useEffect(() => {
     // Prépare le brouillard d'exploration (sauvegardé) à la taille de la carte.
     const c = laCarte();
     lesExplorees(c.largeur * c.hauteur);
     capture = () => controles.current?.lock();
-    teleport = (p) => {
-      const [x, z] = surTerre(p);
+    // Au départ, on regarde vers le centre du village.
+    const cap = lePlan().depart.cap;
+    camera.position.copy(depart);
+    camera.lookAt(depart.x + Math.cos(cap), depart.y, depart.z + Math.sin(cap));
+    teleport = (x, z) => {
+      prechaufferTerrain(x, z);
       const y = sol(x, z) + REGLAGES.hauteurYeux;
       corps.current?.setTranslation({ x, y, z }, true);
       corps.current?.setNextKinematicTranslation({ x, y, z });
+      vy.current = 0;
+      camY.current = y;
+      voler(false);
     };
     // Outils de test, en développement seulement (console du navigateur).
     if (import.meta.env.DEV) {
       const w = window as unknown as Record<string, unknown>;
-      w.teleporter = (px: number, py: number) => teleport([px, py]);
+      w.teleporter = (px: number, py: number) => teleport(...terreFerme([px, py], 1));
       w.regarder = (directionDeg: number) => {
         const a = (directionDeg * Math.PI) / 180;
         camera.lookAt(camera.position.x + Math.cos(a), camera.position.y, camera.position.z + Math.sin(a));
       };
       w.position = () => corps.current?.translation();
     }
-  }, [camera]);
+  }, [camera, depart]);
 
   useEffect(() => {
     if (panneau) controles.current?.unlock();
   }, [panneau]);
 
-  // Positions des éléments interactifs, en mètres (calculées une fois).
+  // Positions des éléments interactifs, en mètres (celles du plan, là où ils sont dessinés).
   const reperes = useMemo(() => {
-    const m = (p: Px) => surTerre(p);
+    const plan = lePlan();
+    const liste = (r: Record<string, { x: number; z: number }>) => Object.entries(r).map(([id, p]) => ({ id, p: [p.x, p.z] as [number, number] }));
     return {
-      indices: INDICES.map((i) => ({ id: i.id, p: m(i.position) })),
-      enigmes: ENIGMES.map((e) => ({ id: e.id, p: m(e.position) })),
-      ports: PORTS.map((p) => ({ id: p.id, p: m(p.position) })),
-      ramassables: RAMASSABLES.map((r) => ({ id: r.objet, p: m(r.position) })),
-      feux: FEUX.map((f) => ({ id: f.id, p: m(f.position) })),
+      indices: liste(plan.indices),
+      enigmes: liste(plan.enigmes),
+      ramassables: liste(plan.ramassables),
+      feux: liste(plan.feux),
+      ports: Object.entries(plan.ports).map(([id, q]) => ({ id, p: q.appel })),
       lieux: LIEUX.map((l) => ({ id: l.id, p: versMonde(l.position), rayon: l.rayon })),
-      frontieres: FRONTIERES_MAGIQUES.map((f) => ({ ...f, idx: f.regions.map((id) => IDS_REGIONS.indexOf(id)) })),
+      frontieres: FRONTIERES_MAGIQUES.map((f) => ({ ...f, zones: f.regions.map((id) => (id === "mer" ? MER : IDS_REGIONS.indexOf(id))) })),
     };
   }, []);
 
@@ -120,26 +158,34 @@ export function Joueur() {
   const mouvement = useMemo(() => new THREE.Vector3(), []);
   const derniereExploration = useRef({ x: Infinity, z: Infinity });
 
+  /** Pente du sol devant soi, mesurée sur 1,5 m (indépendante de la vitesse et des images par seconde). */
+  const penteDevant = (x: number, z: number, ux: number, uz: number) => (sol(x + ux * 1.5, z + uz * 1.5) - sol(x, z)) / 1.5;
+
   /** Pourquoi ce pas est impossible (message), ou null s'il est permis. */
   function obstacle(px: number, pz: number, nx: number, nz: number, y: number): string | null {
-    // La mer : un peu d'eau près de la côte, pas davantage (sauf sur un pont).
-    if (hauteurPont(nx, nz) === null && distanceEnMer(nx, nz) > REGLAGES.eauMax) return "La mer est trop profonde. Il te faut un bateau.";
-    // Frontières magiques entre deux régions.
-    const ra = regionA(px, pz);
-    const rb = regionA(nx, nz);
-    if (ra !== rb && ra !== MER && rb !== MER) {
+    // La mer : un peu d'eau près de la côte, pas davantage (sauf sur un pont ou un ponton).
+    // Si l'on est déjà trop loin (après un saut depuis un pont), on peut toujours revenir vers la côte.
+    if (hauteurPont(nx, nz) === null) {
+      const loin = distanceEnMer(nx, nz);
+      if (loin > REGLAGES.eauMax && loin >= distanceEnMer(px, pz)) return "La mer est trop profonde. Il te faut un bateau.";
+    }
+    // Frontières magiques entre deux régions (ou entre une région et la mer).
+    const za = zone(px, pz);
+    const zb = zone(nx, nz);
+    if (za !== zb) {
       for (const f of reperes.frontieres) {
-        const [p, q] = f.idx;
+        const [p, q] = f.zones;
         // Sans condition d'ouverture, la frontière reste fermée pour toujours.
         const ouverte = f.quand !== undefined && remplie(f.quand, useJeu.getState());
-        if (((ra === p && rb === q) || (ra === q && rb === p)) && !ouverte) return f.message;
+        if (((za === p && zb === q) || (za === q && zb === p)) && !ouverte) return f.message;
       }
     }
-    // Falaises : on ne monte pas un mur, sauf si l'on vole déjà au-dessus.
-    const s0 = sol(px, pz);
-    const s1 = sol(nx, nz);
+    // Parois : trop raides pour monter, sauf si l'on passe au-dessus (saut, vol).
     const d = Math.hypot(nx - px, nz - pz) || 1;
-    if (s1 + REGLAGES.hauteurYeux > y + 0.6 && (s1 - s0) / d > REGLAGES.penteMax) return "La paroi est trop raide.";
+    const pente = penteDevant(px, pz, (nx - px) / d, (nz - pz) / d);
+    const pieds = y - REGLAGES.hauteurYeux;
+    const devant = sol(px + ((nx - px) / d) * 1.5, pz + ((nz - pz) / d) * 1.5);
+    if (pente > REGLAGES.penteMax && devant > pieds + (vol.current ? 0.6 : 0.3)) return "La paroi est trop raide.";
     return null;
   }
 
@@ -151,6 +197,25 @@ export function Joueur() {
     const etat = useJeu.getState();
     const actif = etat.enJeu && !etat.panneau && !etat.fondu;
     const t = lire();
+    const pos = b.translation();
+
+    // Espace : sauter ; deux fois de suite : voler (ou cesser de voler).
+    const appui = actif && t.monter && !espace.current.avant;
+    espace.current.avant = actif && t.monter;
+    if (appui) {
+      const maintenant = performance.now();
+      if (maintenant - espace.current.dernier < DOUBLE_APPUI) {
+        voler(!vol.current);
+        vy.current = 0;
+        espace.current.dernier = 0;
+      } else {
+        espace.current.dernier = maintenant;
+        if (!vol.current && auSol.current) {
+          vy.current = SAUT;
+          auSol.current = false;
+        }
+      }
+    }
 
     camera.getWorldDirection(avant);
     avant.y = 0;
@@ -162,12 +227,18 @@ export function Joueur() {
       if (t.arriere) mouvement.sub(avant);
       if (t.droite) mouvement.add(droite);
       if (t.gauche) mouvement.sub(droite);
-      if (mouvement.lengthSq() > 0) mouvement.normalize();
-      mouvement.multiplyScalar((t.courir ? REGLAGES.vitesseRapide : REGLAGES.vitesse) * dt);
-      mouvement.y = ((t.monter ? 1 : 0) - (t.descendre ? 1 : 0)) * REGLAGES.vitesse * 0.7 * dt;
+    }
+    if (mouvement.lengthSq() > 0) {
+      mouvement.normalize();
+      let vitesse = t.courir ? REGLAGES.vitesseRapide : REGLAGES.vitesse;
+      // On ralentit dans les côtes raides (à pied seulement).
+      if (!vol.current) {
+        const pente = penteDevant(pos.x, pos.z, mouvement.x, mouvement.z);
+        vitesse *= 1 - 0.55 * THREE.MathUtils.smoothstep(pente, PENTE_LENTE, REGLAGES.penteMax);
+      }
+      mouvement.multiplyScalar(vitesse * dt);
     }
 
-    const pos = b.translation();
     // Règles du monde : on essaie le pas complet, puis chaque axe seul (pour glisser le long).
     let bloque: string | null = null;
     if (mouvement.x || mouvement.z) {
@@ -190,18 +261,57 @@ export function Joueur() {
       mouvement.z = choisi[1];
     }
 
-    // Plafond et plancher, à l'endroit où l'on va : c'est ce qui empêche de survoler un rempart.
+    // Vertical : plancher (le sol) et plafond (vol limité), à l'endroit où l'on va.
+    // C'est ce plafond qui empêche de survoler un rempart ou une porte fermée.
     const s = sol(pos.x + mouvement.x, pos.z + mouvement.z);
     const yMin = s + REGLAGES.hauteurYeux;
-    const yMax = s + REGLAGES.volMax;
-    mouvement.y = THREE.MathUtils.clamp(pos.y + mouvement.y, yMin, Math.max(yMin, yMax)) - pos.y;
+    const yMax = Math.max(yMin, s + REGLAGES.volMax);
+    let y = pos.y;
+    if (vol.current) {
+      vy.current = 0;
+      y += ((actif && t.monter ? 1 : 0) - (actif && t.descendre ? 1 : 0)) * REGLAGES.vitesse * 0.7 * dt;
+      // Descendre jusqu'au sol : on se pose.
+      if (actif && t.descendre && y <= yMin + 0.05) voler(false);
+      y = THREE.MathUtils.clamp(y, yMin, yMax);
+      auSol.current = y <= yMin + 0.01;
+    } else {
+      vy.current -= GRAVITE * dt;
+      y += vy.current * dt;
+      const pas = Math.hypot(mouvement.x, mouvement.z);
+      if (y <= yMin) {
+        y = yMin;
+        vy.current = 0;
+        auSol.current = true;
+      } else if (auSol.current && vy.current <= 0 && y - yMin < 0.4 + pas * 1.6) {
+        // En descente, on reste collé au sol au lieu de décoller à chaque bosse.
+        y = yMin;
+        vy.current = 0;
+      } else {
+        auSol.current = false;
+      }
+      y = Math.min(y, yMax);
+    }
+    mouvement.y = y - pos.y;
 
     ctrl.computeColliderMovement(b.collider(0), mouvement);
     const corrige = ctrl.computedMovement();
     const suivant = { x: pos.x + corrige.x, y: pos.y + corrige.y, z: pos.z + corrige.z };
     suivant.y = Math.max(suivant.y, sol(suivant.x, suivant.z) + REGLAGES.hauteurYeux);
+    if (!vol.current) {
+      // Un plafond nous arrête en plein saut : on retombe.
+      if (vy.current > 0 && corrige.y < mouvement.y - 0.01) vy.current = 0;
+      // Posé sur un obstacle (rocher, rebord…) : on y tient debout.
+      if (mouvement.y < 0 && corrige.y > mouvement.y + 0.001) {
+        vy.current = 0;
+        auSol.current = true;
+      }
+    }
     b.setNextKinematicTranslation(suivant);
-    camera.position.set(suivant.x, suivant.y, suivant.z);
+
+    // Caméra : hauteur lissée (les petites marches et les atterrissages ne secouent pas la vue).
+    camY.current += (suivant.y - camY.current) * (1 - Math.exp(-dt * 18));
+    camY.current = Math.max(camY.current, sol(suivant.x, suivant.z) + 1.2);
+    camera.position.set(suivant.x, camY.current, suivant.z);
     positionJoueur.x = suivant.x;
     positionJoueur.z = suivant.z;
     positionJoueur.cap = Math.atan2(avant.z, avant.x);
@@ -231,8 +341,8 @@ export function Joueur() {
     proche("enigme", reperes.enigmes, (id) => !etat.enigmes.includes(id));
     proche("ramassable", reperes.ramassables, (id) => !etat.objets.includes(id));
     if (!cible) {
-      // Les quais sont grands : on peut appeler le bateau d'un peu plus loin.
-      dMin = 14;
+      // Les quais sont grands : on peut appeler le bateau de n'importe où sur le ponton.
+      dMin = 16;
       proche("port", reperes.ports);
     }
     etat.viser(cible);

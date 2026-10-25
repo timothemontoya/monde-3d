@@ -3,20 +3,18 @@ import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { ENIGMES, INDICES, RAMASSABLES } from "../content/monde";
-import type { Indice, Px } from "../content/types";
+import type { Indice } from "../content/types";
 import { useJeu } from "../game/store";
 import { FormeObjet } from "../player/FormeObjet";
-import { surTerre } from "./carte";
-import { graine, hauteurSol } from "./relief";
+import { Modele } from "./modeles";
+import { lePlan, type Point } from "./plan";
+import { graine } from "./relief";
 import { textureDouce } from "./textures";
 
 const PIERRE = new THREE.MeshStandardMaterial({ color: "#7d776c", roughness: 0.9 });
 const BOIS = new THREE.MeshStandardMaterial({ color: "#5a3e26", roughness: 0.85 });
 
-const auSol = (p: Px) => {
-  const [x, z] = surTerre(p);
-  return [x, hauteurSol(x, z), z] as [number, number, number];
-};
+const xyz = (p: Point) => [p.x, p.y, p.z] as [number, number, number];
 
 /** Petites lueurs autour d'un objet pas encore découvert (comme les objets au sol d'Elden Ring). */
 function Lueurs({ couleur, eteintes }: { couleur: string; eteintes: boolean }) {
@@ -44,7 +42,7 @@ function Lueurs({ couleur, eteintes }: { couleur: string; eteintes: boolean }) {
 
 function ObjetIndice({ indice }: { indice: Indice }) {
   const trouve = useJeu((s) => s.indices.includes(indice.id));
-  const position = useMemo(() => auSol(indice.position), [indice]);
+  const position = useMemo(() => xyz(lePlan().indices[indice.id]), [indice]);
   const braise = useRef<THREE.Mesh>(null);
   useFrame((state) => {
     if (braise.current) braise.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 2.2) * 0.12);
@@ -52,36 +50,61 @@ function ObjetIndice({ indice }: { indice: Indice }) {
   return (
     <group position={position}>
       {indice.objet === "stele" && (
-        <RigidBody type="fixed" colliders="cuboid">
-          <mesh material={PIERRE} position={[0, 2.2, 0]} castShadow>
-            <boxGeometry args={[2.2, 4.4, 0.6]} />
-          </mesh>
-          <mesh position={[0, 3, 0.31]}>
-            <planeGeometry args={[1.2, 1.6]} />
-            <meshBasicMaterial color="#ffcf7a" transparent opacity={0.55} blending={THREE.AdditiveBlending} />
-          </mesh>
-        </RigidBody>
+        <>
+          <Modele
+            modele="stele"
+            provisoire={
+              <>
+                <mesh material={PIERRE} position={[0, 2.2, 0]} castShadow>
+                  <boxGeometry args={[2.2, 4.4, 0.6]} />
+                </mesh>
+                <mesh position={[0, 3, 0.31]}>
+                  <planeGeometry args={[1.2, 1.6]} />
+                  <meshBasicMaterial color="#ffcf7a" transparent opacity={0.55} blending={THREE.AdditiveBlending} />
+                </mesh>
+              </>
+            }
+          />
+          <RigidBody type="fixed" colliders={false}>
+            <CuboidCollider args={[1.1, 2.2, 0.3]} position={[0, 2.2, 0]} />
+          </RigidBody>
+        </>
       )}
       {indice.objet === "livre" && (
-        <RigidBody type="fixed" colliders="cuboid">
-          <mesh material={BOIS} position={[0, 0.6, 0]} castShadow>
-            <boxGeometry args={[0.5, 1.2, 0.5]} />
-          </mesh>
-          <mesh material={BOIS} position={[0, 1.25, 0]} rotation-x={-0.4} castShadow>
-            <boxGeometry args={[1.1, 0.12, 0.8]} />
-          </mesh>
-          <mesh position={[0, 1.35, 0.02]} rotation-x={-0.4}>
-            <boxGeometry args={[0.9, 0.08, 0.62]} />
-            <meshStandardMaterial color="#e8dcc0" roughness={0.9} />
-          </mesh>
-        </RigidBody>
+        <>
+          <Modele
+            modele="lutrin"
+            provisoire={
+              <>
+                <mesh material={BOIS} position={[0, 0.6, 0]} castShadow>
+                  <boxGeometry args={[0.5, 1.2, 0.5]} />
+                </mesh>
+                <mesh material={BOIS} position={[0, 1.25, 0]} rotation-x={-0.4} castShadow>
+                  <boxGeometry args={[1.1, 0.12, 0.8]} />
+                </mesh>
+                <mesh position={[0, 1.35, 0.02]} rotation-x={-0.4}>
+                  <boxGeometry args={[0.9, 0.08, 0.62]} />
+                  <meshStandardMaterial color="#e8dcc0" roughness={0.9} />
+                </mesh>
+              </>
+            }
+          />
+          <RigidBody type="fixed" colliders={false}>
+            <CuboidCollider args={[0.55, 0.7, 0.45]} position={[0, 0.7, 0]} />
+          </RigidBody>
+        </>
       )}
       {indice.objet === "braise" && (
         <>
+          <Modele
+            modele="autel-braise"
+            provisoire={
+              <mesh material={PIERRE} position={[0, 0.5, 0]} castShadow>
+                <cylinderGeometry args={[1, 1.3, 1, 8]} />
+              </mesh>
+            }
+          />
           <RigidBody type="fixed" colliders={false}>
-            <mesh material={PIERRE} position={[0, 0.5, 0]} castShadow>
-              <cylinderGeometry args={[1, 1.3, 1, 8]} />
-            </mesh>
             <CuboidCollider args={[1.2, 0.5, 1.2]} position={[0, 0.5, 0]} />
           </RigidBody>
           {!trouve && (
@@ -101,9 +124,9 @@ function ObjetIndice({ indice }: { indice: Indice }) {
 }
 
 /** Objet posé au sol : flotte et tourne sur lui-même jusqu'à ce qu'on le ramasse. */
-function Ramassable({ objet, position }: { objet: string; position: Px }) {
+function Ramassable({ objet }: { objet: string }) {
   const possede = useJeu((s) => s.objets.includes(objet));
-  const p = useMemo(() => auSol(position), [position]);
+  const p = useMemo(() => xyz(lePlan().ramassables[objet]), [objet]);
   const ref = useRef<THREE.Group>(null);
   useFrame((state) => {
     if (!ref.current) return;
@@ -122,23 +145,31 @@ function Ramassable({ objet, position }: { objet: string; position: Px }) {
 }
 
 /** Cadran à combinaison (énigme), posé sur un socle. */
-function Cadran({ position, resolue }: { position: Px; resolue: boolean }) {
-  const p = useMemo(() => auSol(position), [position]);
+function Cadran({ id, resolue }: { id: string; resolue: boolean }) {
+  const p = useMemo(() => xyz(lePlan().enigmes[id]), [id]);
   const disque = useRef<THREE.Mesh>(null);
   useFrame((_, delta) => {
     if (disque.current) disque.current.rotation.z += delta * (resolue ? 0 : 0.15);
   });
   return (
     <group position={p}>
-      <RigidBody type="fixed" colliders="cuboid">
-        <mesh material={PIERRE} position={[0, 0.9, 0]} castShadow>
-          <boxGeometry args={[1.4, 1.8, 1.4]} />
-        </mesh>
+      <Modele
+        modele="cadran"
+        provisoire={
+          <>
+            <mesh material={PIERRE} position={[0, 0.9, 0]} castShadow>
+              <boxGeometry args={[1.4, 1.8, 1.4]} />
+            </mesh>
+            <mesh ref={disque} position={[0, 2.2, 0]} rotation-x={-Math.PI / 2.6}>
+              <cylinderGeometry args={[0.8, 0.8, 0.15, 24]} />
+              <meshStandardMaterial color={resolue ? "#6a6a6a" : "#b8923c"} metalness={0.8} roughness={0.35} />
+            </mesh>
+          </>
+        }
+      />
+      <RigidBody type="fixed" colliders={false}>
+        <CuboidCollider args={[0.7, 0.9, 0.7]} position={[0, 0.9, 0]} />
       </RigidBody>
-      <mesh ref={disque} position={[0, 2.2, 0]} rotation-x={-Math.PI / 2.6}>
-        <cylinderGeometry args={[0.8, 0.8, 0.15, 24]} />
-        <meshStandardMaterial color={resolue ? "#6a6a6a" : "#b8923c"} metalness={0.8} roughness={0.35} />
-      </mesh>
       <Lueurs couleur="#9fd0ff" eteintes={resolue} />
     </group>
   );
@@ -152,10 +183,10 @@ export function Objets() {
         <ObjetIndice key={i.id} indice={i} />
       ))}
       {RAMASSABLES.map((r) => (
-        <Ramassable key={r.objet} objet={r.objet} position={r.position} />
+        <Ramassable key={r.objet} objet={r.objet} />
       ))}
       {ENIGMES.map((e) => (
-        <Cadran key={e.id} position={e.position} resolue={enigmes.includes(e.id)} />
+        <Cadran key={e.id} id={e.id} resolue={enigmes.includes(e.id)} />
       ))}
     </>
   );
