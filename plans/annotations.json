@@ -3932,6 +3932,22 @@
       "statut": "fait",
       "cree": "2026-10-26T23:05:07.605Z",
       "reponse": "Port déplacé ici. Le bateau pour les Atlantes reste bloqué tant que l’avant-poste n’est pas neutralisé. Comment veux-tu qu’on le neutralise ? En attendant, on ne peut plus aller aux Atlantes."
+    },
+    {
+      "id": "ziibu0s",
+      "forme": "ping",
+      "categorie": "village",
+      "points": [
+        [
+          951,
+          251
+        ]
+      ],
+      "couleur": "#e0b050",
+      "nom": "",
+      "note": "",
+      "statut": "a-faire",
+      "cree": "2026-10-27T13:32:28.064Z"
     }
   ]
 }

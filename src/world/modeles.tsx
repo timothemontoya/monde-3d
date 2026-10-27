@@ -1,6 +1,6 @@
 import { useGLTF } from "@react-three/drei";
 import type { ThreeElements } from "@react-three/fiber";
-import { Suspense, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { Component, Suspense, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import * as THREE from "three";
 
 /**
@@ -14,6 +14,23 @@ const URLS: Record<string, string> = Object.fromEntries(
 
 export const modeleExiste = (id: string) => id in URLS;
 export const modelesDisponibles = () => Object.keys(URLS).sort();
+
+/**
+ * Si un modèle ne se charge pas (réseau coupé, fichier absent), on montre sa forme provisoire au lieu
+ * de laisser l'erreur arrêter tout le jeu.
+ */
+class SiEchec extends Component<{ provisoire: ReactNode; children: ReactNode }, { echec: boolean }> {
+  state = { echec: false };
+  static getDerivedStateFromError() {
+    return { echec: true };
+  }
+  componentDidCatch(erreur: unknown) {
+    console.warn("Modèle non chargé, forme provisoire à la place :", erreur);
+  }
+  render() {
+    return this.state.echec ? this.props.provisoire : this.props.children;
+  }
+}
 
 /** Plusieurs exemplaires d'une même forme, dessinés en une seule fois. */
 export function Instances({
@@ -58,9 +75,11 @@ export function Modele({ modele, provisoire = null, ...props }: { modele: string
   return (
     <group {...props}>
       {url ? (
-        <Suspense fallback={provisoire}>
-          <ModeleCharge url={url} />
-        </Suspense>
+        <SiEchec provisoire={provisoire}>
+          <Suspense fallback={provisoire}>
+            <ModeleCharge url={url} />
+          </Suspense>
+        </SiEchec>
       ) : (
         provisoire
       )}
@@ -113,9 +132,11 @@ export function InstancesModele({
   if (!matrices.length) return null;
   if (!url) return <>{provisoire}</>;
   return (
-    <Suspense fallback={provisoire}>
-      <InstancesChargees url={url} matrices={matrices} ombre={ombre} />
-    </Suspense>
+    <SiEchec provisoire={provisoire}>
+      <Suspense fallback={provisoire}>
+        <InstancesChargees url={url} matrices={matrices} ombre={ombre} />
+      </Suspense>
+    </SiEchec>
   );
 }
 

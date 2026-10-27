@@ -85,6 +85,8 @@ function construire(c: Chemin, hasard: () => number) {
   const pierres: Bord[] = [];
   const lanternes: Bord[] = [];
   const clotures: Bord[] = [];
+  const bordures: (Bord & { modele: string })[] = [];
+  let prochaineBordure = 5;
   // Tronçons de clôture : 3 à 5 éléments, puis une trouée, d'un côté ou de l'autre.
   let troncon = { fin: 0, prochain: 6, cote: 1 };
   let prochainePierre = 4;
@@ -127,6 +129,16 @@ function construire(c: Chemin, hasard: () => number) {
         if (y > 0.9) clotures.push({ x: fx, y: y - 0.05, z: fz, rot: Math.atan2(-(b[1] - a[1]), b[0] - a[0]), e: 1 });
       }
     }
+    // Des buissons et des souches en bordure, tous les 8 à 15 m (pas sur la lave).
+    if (s >= prochaineBordure && c.matiere !== "lave") {
+      prochaineBordure = s + 8 + hasard() * 7;
+      const cote = hasard() < 0.5 ? -1 : 1;
+      const ecart = largeur / 2 + 1.2 + hasard() * 1.5;
+      const [bx, bz] = [x + nx * cote * ecart, z + nz * cote * ecart];
+      const y = hauteurTerrain(bx, bz);
+      const modele = ["buisson-1", "buisson-2", "buisson-1", "souche"][Math.floor(hasard() * 4)];
+      if (y > 0.9) bordures.push({ x: bx, y: y - 0.1, z: bz, rot: hasard() * Math.PI * 2, e: modele === "souche" ? 0.8 : 0.6 + hasard() * 0.6, modele });
+    }
     // Des lanternes à intervalle régulier, en alternant les côtés.
     if (s >= prochaineLanterne) {
       const cote = lanternes.length % 2 ? -1 : 1;
@@ -141,7 +153,7 @@ function construire(c: Chemin, hasard: () => number) {
   g.setAttribute("color", new THREE.Float32BufferAttribute(teintes, 4));
   g.setIndex(indices);
   g.computeVertexNormals();
-  return { g, pierres, lanternes, clotures, lave: c.matiere === "lave" };
+  return { g, pierres, lanternes, clotures, bordures, lave: c.matiere === "lave" };
 }
 
 /** Rayon de la place de terre battue d'un carrefour, en m. */
@@ -206,7 +218,7 @@ const LAVE = new THREE.MeshBasicMaterial({
 
 /** Chemins de terre (CHEMINS dans monde.ts), bordés de pierres et parfois de lanternes. */
 export function Chemins() {
-  const { geometries, laves, pierres, lanternes, verres, clotures } = useMemo(() => {
+  const { geometries, laves, pierres, lanternes, verres, clotures, bordures } = useMemo(() => {
     const hasard = graine(61);
     const tout = CHEMINS.map((c) => construire(c, hasard));
     const pierres: THREE.Matrix4[][] = [[], [], []];
@@ -218,6 +230,9 @@ export function Chemins() {
       lanternes: tout.flatMap((t) => t.lanternes).map((b) => matrice(b.x, b.y, b.z, b.rot)),
       verres: tout.flatMap((t) => t.lanternes).map((b) => [b.x, b.y + VERRE_LANTERNE, b.z] as [number, number, number]),
       clotures: tout.flatMap((t) => t.clotures).map((b) => matrice(b.x, b.y, b.z, b.rot)),
+      bordures: [...new Set(tout.flatMap((t) => t.bordures.map((b) => b.modele)))].map(
+        (modele) => [modele, tout.flatMap((t) => t.bordures.filter((b) => b.modele === modele)).map((b) => matrice(b.x, b.y, b.z, b.rot, b.e))] as const,
+      ),
     };
   }, []);
   return (
@@ -234,6 +249,9 @@ export function Chemins() {
       <InstancesModele modele="lanterne" matrices={lanternes} provisoire={null} />
       <Halos positions={verres} />
       <InstancesModele modele="cloture" matrices={clotures} provisoire={null} />
+      {bordures.map(([modele, m]) => (
+        <InstancesModele key={modele} modele={modele} matrices={m} provisoire={null} />
+      ))}
     </>
   );
 }

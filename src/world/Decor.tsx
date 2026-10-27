@@ -101,7 +101,7 @@ const arbres = (nom: string, n: number, densite: number, bosquets?: "dans"): Sem
   bosquets,
   marge: 5,
 });
-const BUISSONS: Semis = { densite: 6, variantes: variantes("buisson", 2), forme: "buisson", penteMax: 0.8, hauteurMin: 2.5, echelle: [0.9, 1.8], bosquets: "dans", marge: 1.5 };
+const BUISSONS: Semis = { densite: 9, variantes: variantes("buisson", 2), forme: "buisson", penteMax: 0.8, hauteurMin: 2.5, echelle: [0.9, 1.8], bosquets: "dans", marge: 1.5 };
 const ROCHERS_EPARS: Semis = {
   densite: 1.5,
   variantes: variantes("rocher", 3),
@@ -127,6 +127,17 @@ const FLEURS: Semis = {
   villages: true,
 };
 const BOIS_MORT: Semis = { densite: 1, variantes: ["souche", "tronc"], forme: "souche", penteMax: 0.7, hauteurMin: 2, echelle: [0.8, 1.3], bosquets: "dans", marge: 2 };
+/** Traces de vie dans la campagne : une vieille clôture, une stèle, un tronc, un tonneau oublié. */
+const TRACES: Semis = {
+  densite: 0.25,
+  variantes: ["stele-moussue", "cloture", "tronc", "tonneau", "souche", "botte-foin"],
+  forme: "souche",
+  penteMax: 0.4,
+  hauteurMin: 2,
+  echelle: [0.9, 1.1],
+  bosquets: "hors",
+  marge: 2,
+};
 const CHAMPIGNONS: Semis = { densite: 10, variantes: variantes("champignon", 2), forme: "fleur", penteMax: 0.9, hauteurMin: 1.5, echelle: [1, 2.2], marge: 0.5 };
 
 /**
@@ -150,7 +161,7 @@ const FALAISES: Semis = {
 const PETITES = new Set(["herbe", "fleur"]);
 
 const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
-  "foret-doree": [arbres("arbre-dore", 6, 5, "dans"), BUISSONS, HERBES, FLEURS, BOIS_MORT],
+  "foret-doree": [arbres("arbre-dore", 6, 5, "dans"), BUISSONS, HERBES, FLEURS, BOIS_MORT, TRACES],
   "foret-sombre": [arbres("arbre-sorciere", 3, 25), { ...BUISSONS, densite: 8, bosquets: undefined }, CHAMPIGNONS, { ...HERBES, densite: 30 }, BOIS_MORT],
   "pins-enneiges": [arbres("pin-enneige", 5, 14, "dans"), { ...BOIS_MORT, densite: 0.5 }, { ...ROCHERS_EPARS, densite: 2.5, variantes: variantes("rocher-glace", 3) }],
   "arbres-morts": [{ ...arbres("arbre-mort", 2, 4, "dans"), echelle: [0.7, 1.2] }, { ...BOIS_MORT, densite: 2 }, { ...ROCHERS_EPARS, densite: 1.5 }],
@@ -352,8 +363,13 @@ function MaisonsProvisoires({ maisons }: { maisons: Maison[] }) {
 }
 
 function Villages() {
-  const { maisons, jardins } = lePlan();
+  const { maisons, jardins, garnitures } = lePlan();
   const potagers = useMemo(() => jardins.map((j) => matrice(j.x, j.y - 0.05, j.z, j.rot)), [jardins]);
+  const objets = useMemo(() => {
+    const parModele = new Map<string, THREE.Matrix4[]>();
+    for (const g of garnitures) parModele.set(g.modele, [...(parModele.get(g.modele) ?? []), matrice(g.x, g.y - 0.05, g.z, g.rot, g.e)]);
+    return [...parModele];
+  }, [garnitures]);
   const parModele = useMemo(() => {
     const m = new Map<string, Maison[]>();
     for (const maison of maisons) m.set(maison.modele, [...(m.get(maison.modele) ?? []), maison]);
@@ -365,6 +381,9 @@ function Villages() {
         <InstancesModele key={id} modele={id} matrices={liste.map((m) => matrice(m.x, m.y, m.z, m.rot))} provisoire={<MaisonsProvisoires maisons={liste} />} />
       ))}
       <InstancesModele modele="potager" matrices={potagers} provisoire={null} ombre={false} />
+      {objets.map(([modele, m]) => (
+        <InstancesModele key={modele} modele={modele} matrices={m} provisoire={null} />
+      ))}
       <RigidBody type="fixed" colliders={false}>
         {maisons.map((m, i) => (
           <CuboidCollider key={i} args={[m.l / 2, (m.h + 1.5) / 2, m.p / 2]} position={[m.x, m.y - 1.5 + (m.h + 1.5) / 2, m.z]} rotation={[0, m.rot, 0]} />

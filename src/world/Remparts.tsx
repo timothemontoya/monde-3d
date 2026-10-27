@@ -116,7 +116,21 @@ function placer(r: Rempart, TOUR: number) {
     const [x, z] = point(s);
     if (tours.every((t) => Math.hypot(t.x - x, t.z - z) > ESPACEMENT_TOURS)) tour(s);
   }
-  return { murs, tours };
+  // Au pied des murs, dehors : un buisson ou un rocher, un mur sur deux. Le dehors : loin du centre.
+  const [cx, cz] = pts.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n], [0, 0]);
+  const pieds: (Piece & { modele: string; e: number })[] = [];
+  murs.forEach((m, k) => {
+    if ((k * 7919) % 10 >= 5) return;
+    let [nx, nz] = [-Math.sin(m.rot), -Math.cos(m.rot)];
+    if (nx * (m.x - cx) + nz * (m.z - cz) < 0) [nx, nz] = [-nx, -nz];
+    const d = EPAISSEUR / 2 + 1 + ((k * 31) % 10) / 10;
+    const glisse = (((k * 17) % 10) / 10 - 0.5) * m.longueur * 0.6;
+    const [x, z] = [m.x + nx * d + Math.cos(m.rot) * glisse, m.z + nz * d - Math.sin(m.rot) * glisse];
+    const modele = r.style === "glace" ? `rocher-glace-${(k % 3) + 1}` : ["buisson-1", "buisson-2", "buisson-1", "rocher-2"][k % 4];
+    const rocher = modele.startsWith("rocher");
+    pieds.push({ x, z, y: hauteurSol(x, z) - 0.1, rot: k * 2.3, longueur: 0, modele, e: rocher ? 0.35 : 0.8 + ((k * 13) % 5) / 10 });
+  });
+  return { murs, tours, pieds };
 }
 
 const PROVISOIRE = {
@@ -129,7 +143,12 @@ function UnRempart({ r }: { r: Rempart }) {
   const nom = r.style === "glace" ? "rempart-glace" : "rempart";
   const modeleTour = r.tour ?? (`${nom}-tour` as const);
   const [TOUR, HAUTEUR_TOUR] = TOURS[modeleTour];
-  const { murs, tours } = useMemo(() => placer(r, TOUR), [r, TOUR]);
+  const { murs, tours, pieds } = useMemo(() => placer(r, TOUR), [r, TOUR]);
+  const auPied = useMemo(() => {
+    const parModele = new Map<string, THREE.Matrix4[]>();
+    for (const p of pieds) parModele.set(p.modele, [...(parModele.get(p.modele) ?? []), matrice(p.x, p.y, p.z, p.rot, p.e)]);
+    return [...parModele];
+  }, [pieds]);
   const m = {
     murs: murs.map((p) => matrice(p.x, p.y, p.z, p.rot, p.longueur / MODULE, 1, EPAISSEUR / MODULE)),
     tours: tours.map((p) => matrice(p.x, p.y, p.z, p.rot)),
@@ -140,6 +159,9 @@ function UnRempart({ r }: { r: Rempart }) {
     <>
       <InstancesModele modele={`${nom}-mur`} matrices={m.murs} provisoire={<Instances geometrie={BOITE} materiau={PROVISOIRE[r.style]} matrices={m.mursProvisoires} />} />
       <InstancesModele modele={modeleTour} matrices={m.tours} provisoire={<Instances geometrie={BOITE} materiau={PROVISOIRE[r.style]} matrices={m.toursProvisoires} />} />
+      {auPied.map(([modele, m]) => (
+        <InstancesModele key={modele} modele={modele} matrices={m} provisoire={null} />
+      ))}
       <RigidBody type="fixed" colliders={false}>
         {murs.map((p, i) => (
           <CuboidCollider key={i} args={[p.longueur / 2, HAUTEUR / 2, EPAISSEUR / 2]} position={[p.x, p.y + HAUTEUR / 2, p.z]} rotation={[0, p.rot, 0]} />

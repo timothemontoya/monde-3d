@@ -35,6 +35,8 @@ export type Plan = {
   maisons: Maison[];
   /** Potagers derrière les maisons (rot : la clôture ouverte vers la maison). */
   jardins: (Point & { rot: number })[];
+  /** Petits objets autour des maisons (tonneaux, caisses, buissons…), selon la région. */
+  garnitures: (Point & { rot: number; e: number; modele: string })[];
   decors: Decor[];
   portail: Point;
   palais: Point;
@@ -279,6 +281,48 @@ function emplacements(v: Village, cx: number, cz: number, hasard: () => number):
   });
 }
 
+/**
+ * Ce qu'on trouve autour des maisons de chaque village : près de la porte et aux coins. Les buissons
+ * reviennent partout ; le reste donne son caractère au lieu.
+ */
+const GARNITURES: Record<string, string[]> = {
+  "village-blanc": ["tonneau", "caisse", "seau", "botte-foin", "buisson-1", "buisson-2", "banc"],
+  "cite-volcanique": ["tonneau", "caisse", "brasero", "enclume"],
+  "hameau-atlante": ["tonneau", "caisse", "seau", "buisson-1", "buisson-2"],
+  "cite-du-vent": ["botte-foin", "tonneau", "caisse", "buisson-2"],
+  "campement-sorcieres": ["chaudron", "citrouille", "citrouille", "champignon-1", "champignon-2"],
+};
+/** Emplacements autour d'une maison, dans son repère (en fractions de largeur l et de profondeur p, + un écart en m). */
+const COINS: [number, number, number, number][] = [
+  [-0.5, 0.5, -1.2, 1.4], // à gauche de la porte
+  [0.5, 0.5, 1.2, 1.4], // à droite de la porte
+  [-0.5, -0.5, -1.4, -1.2], // coin arrière gauche
+  [0.5, -0.5, 1.4, -1.2], // coin arrière droit
+  [0.5, 0, 1.3, 0], // pignon droit
+];
+
+function garnirMaisons(maisons: Maison[], jardins: Point[], hasard: () => number) {
+  const sortie: (Point & { rot: number; e: number; modele: string })[] = [];
+  for (const m of maisons) {
+    const liste = GARNITURES[m.village.id];
+    if (!liste) continue;
+    const [s, c] = [Math.sin(m.rot), Math.cos(m.rot)];
+    for (const [fx, fz, ex, ez] of COINS) {
+      if (hasard() > 0.55) continue;
+      // Repère de la maison : +Z vers la façade (tourné de m.rot).
+      const [lx, lz] = [fx * m.l + ex + (hasard() - 0.5) * 0.8, fz * m.p + ez + (hasard() - 0.5) * 0.6];
+      const [x, z] = [m.x + lx * c + lz * s, m.z - lx * s + lz * c];
+      if (tracesAuSol().some((t) => distanceSegment(x, z, ...t.s).d < t.demi + 0.8)) continue;
+      if (jardins.some((j) => Math.hypot(j.x - x, j.z - z) < JARDIN.demi)) continue;
+      if (maisons.some((o) => o !== m && Math.hypot(o.x - x, o.z - z) < Math.max(o.l, o.p) / 2 + 0.8)) continue;
+      const modele = liste[Math.floor(hasard() * liste.length)];
+      const e = modele.startsWith("buisson") ? 0.6 + hasard() * 0.5 : 0.9 + hasard() * 0.2;
+      sortie.push({ x, y: m.y, z, rot: hasard() * Math.PI * 2, e, modele });
+    }
+  }
+  return sortie;
+}
+
 /** Potager (5,3 × 3,6 m) : son demi-encombrement, et l'écart laissé derrière la maison. */
 const JARDIN = { demi: 4.2, ecart: 1.5 };
 
@@ -412,6 +456,7 @@ export function planifier(): Plan {
   const tousPonts = [...ponts, ...quais.map((q) => q.ponton)];
   const maisons = VILLAGES.flatMap((v) => placerVillage(v, plateformes, tousPonts, hasard));
   const jardins = placerJardins(maisons, plateformes, hasard);
+  const garnitures = garnirMaisons(maisons, jardins, hasard);
 
   definirPlateformes(plateformes);
   definirPonts(tousPonts);
@@ -432,6 +477,7 @@ export function planifier(): Plan {
     ponts,
     maisons: maisons.map(auSol),
     jardins: jardins.map(auSol),
+    garnitures: garnitures.map(auSol),
     // (ce qui flotte reste à la surface de l'eau)
     decors: decors.map(auSol).map((d) => (d.def.flotte ? { ...d, y: Math.max(d.y, NIVEAU_MER - 0.3) } : d)),
     portail: auSol(portail),
