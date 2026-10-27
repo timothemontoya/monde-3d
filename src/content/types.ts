@@ -16,6 +16,8 @@ export type Ambiance = {
   /** Lumière d'ambiance venue du ciel et renvoyée par le sol (par défaut : dorée et terreuse). */
   ciel?: string;
   sol?: string;
+  /** Couleur du haut du ciel (par défaut : un bleu doux). */
+  zenith?: string;
 };
 
 /** Ce qu'il faut avoir fait pour qu'une chose s'ouvre ou se révèle. Tout doit être rempli. */
@@ -60,6 +62,10 @@ export type Region = {
   vegetation: Vegetation;
   /** Couleurs du sol : herbe/terre principale et roche. */
   sol: [string, string];
+  /** « falaises » : le plateau reste haut jusqu'au bord de l'eau et tombe d'un coup (sinon : une plage). */
+  cotes?: "falaises";
+  /** Avec des falaises : là où la côte reste une plage (point et rayon en m). */
+  plages?: { position: Px; rayon: number }[];
   /** Neige sur les sommets (au-dessus de 110 m environ). Oui par défaut. */
   neige?: boolean;
   lore: Lore[];
@@ -155,6 +161,10 @@ export type Chemin = {
   largeur: number;
   /** Une lanterne tous les tant de mètres, en alternant les côtés. */
   lanternes?: number;
+  /** Des tronçons de clôture en bois le long du chemin, sur les tant premiers mètres. */
+  clotures?: number;
+  /** « lave » : une rigole de lave incandescente au lieu d'un chemin de terre. */
+  matiere?: "lave";
 };
 
 /** Zone plus boisée que le reste de sa région. */
@@ -163,6 +173,10 @@ export type Bois = {
   vegetation: Exclude<Vegetation, "aucune">;
   /** Arbres par hectare (une forêt dense : 40 à 70). */
   densite: number;
+  /** Zone laissée sans arbres à l'intérieur (un village, une clairière). */
+  trou?: Px[];
+  /** Fleurs par hectare, en plus (un pré fleuri). */
+  fleurs?: number;
 };
 
 /** Montagnes dessinées : le relief monte à l'intérieur de la zone. */
@@ -200,6 +214,8 @@ export type Village = {
   disposition?: { type: "place"; anneaux: number; rues?: Px[] } | { type: "rue"; chemin: string };
   /** Un village en anneaux est bâti sur un sol commun aplani ; `false` : les maisons suivent le relief (ruines). */
   plateau?: boolean;
+  /** Part des maisons (0 à 1) qui ont un potager clôturé derrière elles. */
+  jardins?: number;
 };
 
 /**
@@ -216,6 +232,8 @@ export type DecorUnique = {
   echelle?: number;
   /** Le joueur s'y cogne : taille de la boîte de collision [largeur, hauteur, profondeur] en m. */
   solide?: [number, number, number];
+  /** Posé sur l'eau plutôt qu'au fond (barques, bouées). */
+  flotte?: boolean;
   /** Maison provisoire (murs, toit, taille [largeur, hauteur, profondeur] en m) tant que le modèle manque. */
   substitut?: { murs: string; toit: string; taille: [number, number, number] };
 };

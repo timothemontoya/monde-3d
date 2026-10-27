@@ -1,17 +1,21 @@
 // Adapte des modèles d'un pack (.glb) au jeu, avant de les importer avec importer-modele.sh :
 // taille en mètres, origine au pied du modèle, couleurs de la palette du monde, matières éclairées.
 //
-//   node scripts/preparer-pack.mjs <dossier de sortie> nature=<dossier> pirate=<dossier> castle=<dossier> [modèle…]
+//   node scripts/preparer-pack.mjs <dossier de sortie> nature=<dossier> pirate=<dossier> castle=<dossier>
+//     town=<dossier> survival=<dossier> graveyard=<dossier> [modèle…]
 //
 // Chaque « pack=dossier » donne le dossier des .glb d'un pack ; sans liste de modèles, tout est préparé.
 // Les recettes visent les packs Kenney (CC0) : Nature Kit, Pirate Kit et Castle Kit (https://kenney.nl).
 import { Document, NodeIO } from "@gltf-transform/core";
 import { getBounds, mergeDocuments, unpartition } from "@gltf-transform/functions";
 import { mkdirSync } from "node:fs";
+import sharp from "sharp";
 import { join } from "node:path";
 
 // Palette (sRGB) : reprend les couleurs des formes provisoires de src/world/Decor.tsx.
-const DORE = { leafsFall: "#d4a23a", woodBirch: "#6b5236" };
+const DORE = { leafsFall: "#e2b54e", woodBirch: "#6b5236" };
+const DORE_PALE = { leafsFall: "#e9c45c", woodBirch: "#6b5236" };
+const DORE_ROUX = { leafsFall: "#c98a2e", woodBirch: "#6b5236" };
 const SORCIERE = { leafsDark: "#4a3358", woodBarkDark: "#2a2228" };
 const GIVRE = { leafsDark: "#7f9fa6", woodBarkDark: "#3a3028" };
 /** Un pin sur cinq reste chargé de neige. */
@@ -131,6 +135,48 @@ function palais() {
   return pieces;
 }
 
+/**
+ * Potager (Nature Kit, tuiles de 1 m) : 3 × 2 tuiles de sillons plantés (maïs, carottes, citrouilles,
+ * blé), entourés d'une clôture ouverte au milieu de l'avant (+Z).
+ */
+function potager() {
+  const p = (piece, pos, rot = 0) => ({ source: `nature:${piece}`, pos, rot, echelle: [1, 1, 1] });
+  const D = Math.PI / 2;
+  const plantes = ["crops_cornStageC", "crop_carrot", "crop_pumpkin", "crops_wheatStageB"];
+  const pieces = [];
+  for (let x = 0; x < 3; x++)
+    for (let z = 0; z < 2; z++)
+      for (const dz of [-0.25, 0.25]) {
+        pieces.push(p("crops_dirtRow", [x, 0, z + dz]));
+        const plante = plantes[(x + z * 2 + (dz > 0 ? 1 : 0)) % plantes.length];
+        for (const dx of [-0.3, 0, 0.3]) pieces.push(p(plante, [x + dx, 0, z + dz]));
+      }
+  for (let x = 0; x < 3; x++) {
+    pieces.push(p("fence_simple", [x, 0, 0], 0));
+    if (x !== 1) pieces.push(p("fence_simple", [x, 0, 1], 2 * D));
+  }
+  for (let z = 0; z < 2; z++) pieces.push(p("fence_simple", [0, 0, z], D), p("fence_simple", [2, 0, z], -D));
+  return pieces;
+}
+
+/**
+ * Village blanc : la texture du Town Kit est faite d'aplats ; on les repeint (enduit crème,
+ * colombages brun sombre, pierre claire) au lieu de les teinter, ce qui ne peut pas blanchir du rouge.
+ */
+const PALETTE_VILLAGE = {
+  "#cf534f": "#ece3d0",
+  "#c3495c": "#e6dcc6",
+  "#ff7e44": "#5b3f2b",
+  "#f1976c": "#6a4a32",
+  "#c58262": "#5b3f2b",
+  "#b06041": "#4a3424",
+  "#9a5942": "#4a3424",
+  "#a0a8c9": "#d6cfbf",
+  "#868ba1": "#b8b0a0",
+  "#eeba88": "#efe6d2",
+  "#f2bf99": "#efe6d2",
+};
+
 /** Teintes des murs par région (elles multiplient la texture du kit). */
 const MURS_VILLAGE = { colormap: "#f2ead8" };
 const MURS_VOLCAN = { colormap: "#8a7a74" };
@@ -164,9 +210,9 @@ const RECETTES = {
   "buisson-1": { sources: ["nature:plant_bushLarge"], largeur: 2.5, couleurs: FEUILLAGE },
   "buisson-2": { sources: ["nature:plant_bushDetailed"], largeur: 2.5, couleurs: FEUILLAGE },
   "feu-de-camp": { sources: ["nature:campfire_stones", "nature:campfire_logs"], largeur: 2.5, couleurs: { stone: "#8a857c" } },
-  "arbre-dore-4": { sources: ["nature:tree_cone_fall"], hauteur: 9, couleurs: DORE },
-  "arbre-dore-5": { sources: ["nature:tree_tall_fall"], hauteur: 12, couleurs: DORE },
-  "arbre-dore-6": { sources: ["nature:tree_fat_fall"], hauteur: 8, couleurs: DORE },
+  "arbre-dore-4": { sources: ["nature:tree_cone_fall"], hauteur: 9, couleurs: DORE_ROUX },
+  "arbre-dore-5": { sources: ["nature:tree_tall_fall"], hauteur: 12, couleurs: DORE_ROUX },
+  "arbre-dore-6": { sources: ["nature:tree_fat_fall"], hauteur: 8, couleurs: DORE_PALE },
   "pin-enneige-3": { sources: ["nature:tree_pineRoundA"], hauteur: 10, couleurs: GIVRE },
   "pin-enneige-4": { sources: ["nature:tree_pineSmallA"], hauteur: 6, couleurs: GIVRE },
   "pin-enneige-5": { sources: ["nature:tree_pineGroundA"], hauteur: 4, couleurs: NEIGE },
@@ -177,6 +223,10 @@ const RECETTES = {
   "fleur-jaune": { sources: ["nature:flower_yellowA"], hauteur: 0.5, couleurs: { grass: "#6f7a36" } },
   "fleur-rouge": { sources: ["nature:flower_redA"], hauteur: 0.5, couleurs: { grass: "#6f7a36" } },
   "fleur-violette": { sources: ["nature:flower_purpleA"], hauteur: 0.5, couleurs: { grass: "#6f7a36" } },
+  "fleur-jaune-2": { sources: ["nature:flower_yellowB"], hauteur: 0.4, couleurs: { grass: "#6f7a36" } },
+  "fleur-rouge-2": { sources: ["nature:flower_redB"], hauteur: 0.45, couleurs: { grass: "#6f7a36" } },
+  "fleur-violette-2": { sources: ["nature:flower_purpleB"], hauteur: 0.4, couleurs: { grass: "#6f7a36", colorPurple: "#7f9be0" } },
+  "fleur-blanche": { sources: ["nature:flower_yellowA"], hauteur: 0.5, couleurs: { grass: "#6f7a36", colorYellow: "#f2efe6" } },
   souche: { sources: ["nature:stump_old"], largeur: 1.2, couleurs: { woodBark: "#5a4230" } },
   tronc: { sources: ["nature:log_large"], largeur: 3.2, couleurs: { woodBark: "#5a4230", woodInner: "#b08a5a" } },
   "champignon-1": { sources: ["nature:mushroom_redGroup"], hauteur: 0.7, couleurs: { colorRed: "#8a5fa8" } },
@@ -196,9 +246,9 @@ const RECETTES = {
   "catapulte-detruite": { sources: ["castle:siege-catapult-demolished"], largeur: 6 },
 
   // Maisons (Fantasy Town Kit), aux couleurs de leur région. Les tailles des substituts dans monde.ts correspondent.
-  "maison-village-1": { pieces: maison({ largeur: 3, etages: 2, bas: "wall", haut: "wall-wood", couleurToit: "#a4553a" }), echelle: TUILE, couleurs: MURS_VILLAGE },
-  "maison-village-2": { pieces: maison({ largeur: 4, etages: 1, bas: "wall", couleurToit: "#8a4b33" }), echelle: TUILE, couleurs: MURS_VILLAGE },
-  "maison-village-3": { pieces: maison({ largeur: 3, etages: 1, bas: "wall", cheminee: false, couleurToit: "#b9774a" }), echelle: TUILE, couleurs: MURS_VILLAGE },
+  "maison-village-1": { pieces: maison({ largeur: 3, etages: 2, bas: "wall", haut: "wall-wood", couleurToit: "#7a3f2c" }), echelle: TUILE, palette: PALETTE_VILLAGE },
+  "maison-village-2": { pieces: maison({ largeur: 4, etages: 2, bas: "wall", haut: "wall-wood", couleurToit: "#6a3828" }), echelle: TUILE, palette: PALETTE_VILLAGE },
+  "maison-village-3": { pieces: maison({ largeur: 3, etages: 2, bas: "wall", cheminee: false, couleurToit: "#8c4a32" }), echelle: TUILE, palette: PALETTE_VILLAGE },
   "maison-volcan-1": { pieces: maison({ largeur: 3, etages: 2, bas: "wall", fenetre: "-window-small", couleurToit: "#33302e" }), echelle: TUILE, couleurs: MURS_VOLCAN },
   "maison-volcan-2": { pieces: maison({ largeur: 4, etages: 1, bas: "wall", fenetre: "-window-small", couleurToit: "#3d3431" }), echelle: TUILE, couleurs: MURS_VOLCAN },
   "maison-volcan-3": { pieces: maison({ largeur: 2, etages: 3, bas: "wall", fenetre: "-window-stone", couleurToit: "#4a2a22" }), echelle: TUILE, couleurs: MURS_VOLCAN },
@@ -233,6 +283,33 @@ const RECETTES = {
   "maison-ruine-1": { pieces: ruine(1), echelle: TUILE, couleurs: { colormap: "#9a8f80" } },
   "maison-ruine-2": { pieces: ruine(2), echelle: TUILE, couleurs: { colormap: "#8a8070" } },
   "etendard-corne": { sources: ["pirate:flag-high"], hauteur: 6, couleurs: { colormap: "#9a5a50" } },
+
+  // Village blanc : potagers, et le mobilier des places et des chemins.
+  potager: {
+    pieces: potager(),
+    echelle: 2.1,
+    couleurs: { dirt: "#7a5a3a", dirtDark: "#5e4430", grass: "#6f8a3a", leafsFall: "#d98a2a", wood: "#8a6a44", woodDark: "#6a4e32", woodInner: "#d8c070", _defaultMat: "#c9a84a" },
+  },
+  cloture: { sources: ["nature:fence_simple"], largeur: 2.2, couleurs: { wood: "#8a6a44", woodDark: "#6a4e32" } },
+  "botte-foin": { sources: ["graveyard:hay-bale"], largeur: 1.6, couleurs: { colormap: "#d8b45a" }, uni: true },
+  banc: { sources: ["graveyard:bench"], largeur: 1.8 },
+  panneau: { sources: ["survival:signpost"], hauteur: 2.6 },
+  marmite: { sources: ["survival:campfire-stand"], largeur: 2.2 },
+  coffre: { sources: ["survival:chest"], largeur: 1 },
+  seau: { sources: ["survival:bucket"], hauteur: 0.5 },
+  "stele-moussue": { sources: ["graveyard:gravestone-round"], hauteur: 1.6, couleurs: { colormap: "#a8b090" } },
+  brasero: { sources: ["graveyard:fire-basket"], largeur: 1.2 },
+  tente: { sources: ["survival:tent-canvas"], largeur: 3.5 },
+  enclume: { sources: ["survival:workbench-anvil"], largeur: 1.4 },
+  fantome: { sources: ["graveyard:character-ghost"], hauteur: 2.2, couleurs: { colormap: "#cfe8f5" } },
+  citrouille: { sources: ["graveyard:pumpkin"], largeur: 0.9 },
+  chaudron: { sources: ["graveyard:urn-round"], hauteur: 1.2, couleurs: { colormap: "#3a3a42" } },
+  banniere: { sources: ["castle:flag-banner-long"], hauteur: 4.5, couleurs: { colormap: "#b04a3a" } },
+  barque: { sources: ["pirate:ship-small"], largeur: 9 },
+  "barque-rames": { sources: ["pirate:boat-row-large"], largeur: 3.2 },
+  "rocher-glace-1": { sources: ["nature:stone_largeA"], largeur: 3, couleurs: { stone: "#b8d0dc", _defaultMat: "#b8d0dc" } },
+  "rocher-glace-2": { sources: ["nature:stone_largeC"], largeur: 3, couleurs: { stone: "#c4dae4", _defaultMat: "#c4dae4" } },
+  "rocher-glace-3": { sources: ["nature:stone_largeD"], largeur: 3, couleurs: { stone: "#aac6d4", _defaultMat: "#aac6d4" } },
 
   // Village (Fantasy Town Kit)
   fontaine: { sources: ["town:fountain-round-detail"], largeur: 6 },
@@ -349,6 +426,21 @@ for (const [nom, r] of Object.entries(RECETTES)) {
     // Couleur unie : la texture du pack (orangée pour Castle Kit) est retirée.
     if (c && r.uni) m.setBaseColorTexture(null);
     if (piecesColorees.has(m)) m.setBaseColorFactor([...lineaire(piecesColorees.get(m)), 1]).setBaseColorTexture(null);
+  }
+
+  // Palette : chaque aplat de la texture prend sa nouvelle couleur.
+  if (r.palette) {
+    const remplacer = Object.entries(r.palette).map(([de, vers]) => [[1, 3, 5].map((i) => parseInt(de.slice(i, i + 2), 16)), [1, 3, 5].map((i) => parseInt(vers.slice(i, i + 2), 16))]);
+    for (const t of racine.listTextures()) {
+      const { data, info } = await sharp(Buffer.from(t.getImage())).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      for (let i = 0; i < data.length; i += 4)
+        for (const [de, vers] of remplacer)
+          if (Math.abs(data[i] - de[0]) + Math.abs(data[i + 1] - de[1]) + Math.abs(data[i + 2] - de[2]) < 18) {
+            [data[i], data[i + 1], data[i + 2]] = vers;
+            break;
+          }
+      t.setImage(new Uint8Array(await sharp(data, { raw: info }).png().toBuffer())).setMimeType("image/png");
+    }
   }
 
   const b = getBounds(scene);

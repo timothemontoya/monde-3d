@@ -88,6 +88,7 @@ export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
       lumiere: new THREE.Color(a.lumiere),
       ciel: new THREE.Color(a.ciel ?? AMBIANCE_HORS_ZONE.ciel),
       sol: new THREE.Color(a.sol ?? AMBIANCE_HORS_ZONE.sol),
+      zenith: new THREE.Color(("zenith" in a && a.zenith) || ZENITH),
     };
   }, [zone]);
 
@@ -96,6 +97,7 @@ export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
     brume.color.lerp(cible.brume, k);
     brume.density += (cible.densite - brume.density) * k;
     materiau.uniforms.uHorizon.value.copy(brume.color);
+    materiau.uniforms.uZenith.value.lerp(cible.zenith, k);
     ambiance.current?.color.lerp(cible.ciel, k);
     ambiance.current?.groundColor.lerp(cible.sol, k);
     const cam = state.camera.position;

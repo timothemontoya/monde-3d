@@ -66,10 +66,11 @@ export const REGIONS: Region[] = [
     couleur: "#ffffff",
     point: [1000, 620],
     sousTitre: "Là où tout commence",
-    relief: { altitude: 5, amplitude: 4.5, montagne: 0.1 },
-    ambiance: { brume: "#e6dcc6", densite: 0.0014, lumiere: "#ffe6b8" },
+    cotes: "falaises",
+    relief: { altitude: 12, amplitude: 4.5, montagne: 0.1 },
+    ambiance: { brume: "#ead3a6", densite: 0.0024, lumiere: "#ffd28a", zenith: "#c9c2b0" },
     vegetation: "foret-doree",
-    sol: ["#a8a15a", "#8c857a"],
+    sol: ["#949150", "#b08a5a"],
     lore: [
       { texte: "Un village paisible à l'est du continent, à l'abri de ses remparts. On y arrive sans savoir pourquoi." },
       { texte: "Une seule porte s'ouvre dans les remparts : celle du chemin du commencement.", quand: { lieux: ["chemin-commencement"] } },
@@ -179,6 +180,9 @@ export const REGIONS: Region[] = [
     nom: "L'Archipel des Atlantes",
     couleur: "#78918d",
     sousTitre: "Trois îles et des ponts dans le vide",
+    cotes: "falaises",
+    // La plage d'Oclène, au sud de l'île centrale.
+    plages: [{ position: [202, 926], rayon: 45 }],
     relief: { altitude: 22.5, amplitude: 12.5, montagne: 0.3 },
     ambiance: { brume: "#9fc0c2", densite: 0.0018, lumiere: "#e8fff6" },
     vegetation: "foret-doree",
@@ -503,11 +507,12 @@ export const VILLAGES: Village[] = [
     id: "village-blanc",
     // Dans ses remparts (REMPARTS) : deux anneaux autour de la place du feu, la grand-rue mène à la porte.
     centre: [998, 635],
-    rayon: 50,
-    nombre: 20,
+    rayon: 53,
+    nombre: 26,
     modeles: ["maison-village-1", "maison-village-2", "maison-village-3"],
     substitut: { murs: "#d8cfbd", toit: "#7a4a32", taille: [10, 8, 6.4] },
     disposition: { type: "place", anneaux: 3, rues: [[977, 608]] },
+    jardins: 1,
   },
   {
     id: "cite-volcanique",
@@ -570,13 +575,33 @@ export const VILLAGES: Village[] = [
  */
 export const DECORS: DecorUnique[] = [
   // Village blanc : la place (fontaine, marché) et les lanternes de la grand-rue.
-  { modele: "fontaine", position: [998, 633], plateforme: 5, solide: [6, 1, 6] },
-  { modele: "etal", position: [990, 640], angle: 300, solide: [3, 3.7, 3] },
-  { modele: "etal-vert", position: [1006, 627], angle: 120, solide: [3, 3.7, 3] },
-  { modele: "charrette", position: [1004, 641], angle: 200, solide: [2.3, 1.4, 3.5] },
-  { modele: "arbre-dore-1", position: [992, 638] },
-  { modele: "arbre-dore-4", position: [1004, 630] },
-  { modele: "arbre-dore-6", position: [999, 627] },
+  { modele: "fontaine", position: [998, 633], echelle: 1.6, plateforme: 7, solide: [9.5, 1.5, 9.5] },
+  // Le marché, en arc du côté opposé à la porte.
+  { modele: "etal", position: [1006, 644], angle: 225, solide: [3, 3.7, 3] },
+  { modele: "etal-vert", position: [1009, 636], angle: 180, solide: [3, 3.7, 3] },
+  { modele: "etal", position: [1001, 646], angle: 270, solide: [3, 3.7, 3] },
+  { modele: "caisse", position: [1008, 646], angle: 20, solide: [1.2, 0.8, 1.4] },
+  { modele: "caisse", position: [1010, 640], angle: 70, solide: [1.2, 0.8, 1.4] },
+  { modele: "tonneau", position: [1003, 648], solide: [1.3, 1.2, 1.3] },
+  { modele: "tonneau", position: [1011, 633], solide: [1.3, 1.2, 1.3] },
+  { modele: "charrette", position: [990, 645], angle: 200, solide: [2.3, 1.4, 3.5] },
+  { modele: "banc", position: [990, 636], angle: 0 },
+  { modele: "banc", position: [1006, 634], angle: 180 },
+  { modele: "botte-foin", position: [1007, 641], angle: 30 },
+  { modele: "botte-foin", position: [1008, 643], angle: 80 },
+  { modele: "coffre", position: [991, 630], angle: 20 },
+  { modele: "seau", position: [1000, 628] },
+  // La porte : lanternes et braseros de part et d'autre.
+  { modele: "lanterne", position: [973, 605] },
+  { modele: "lanterne", position: [981, 611] },
+  { modele: "brasero", position: [972, 608] },
+  { modele: "brasero", position: [983, 609] },
+  // À la porte : un panneau, et un petit marché dehors, au bord du chemin.
+  { modele: "panneau", position: [972, 600], angle: 30 },
+  { modele: "etal-vert", position: [960, 592], angle: 45, solide: [3, 3.7, 3] },
+  { modele: "charrette", position: [953, 603], angle: 120, solide: [2.3, 1.4, 3.5] },
+  { modele: "botte-foin", position: [958, 601], angle: 10 },
+  { modele: "tonneau", position: [963, 589], solide: [1.3, 1.2, 1.3] },
   { modele: "lanterne", position: [992, 628] },
   { modele: "lanterne", position: [1005, 637] },
   { modele: "lanterne", position: [994, 643] },
@@ -584,6 +609,9 @@ export const DECORS: DecorUnique[] = [
 
   // Avant-poste de l'Hippocampe : un fort (REMPARTS) avec une batterie de canons devant le bras de mer.
   { modele: "drapeau", position: [244, 414] },
+  { modele: "tente", position: [236, 410], angle: 0, solide: [3.5, 3, 3.5] },
+  { modele: "tente", position: [250, 407], angle: 30, solide: [3.5, 3, 3.5] },
+  { modele: "tente", position: [256, 419], angle: 200, solide: [3.5, 3, 3.5] },
   { modele: "etal", position: [232, 404], angle: 90, solide: [3, 3.7, 3] },
   { modele: "etal-vert", position: [256, 418], angle: 200, solide: [3, 3.7, 3] },
   { modele: "charrette", position: [248, 424], angle: 30, solide: [2.3, 1.4, 3.5] },
@@ -608,11 +636,30 @@ export const DECORS: DecorUnique[] = [
     substitut: { murs: "#3d3330", toit: "#5a1e14", taille: [18, 13.8, 6.4] },
   },
 
-  // Braseros autour de la place de la cité volcanique.
-  { modele: "feu-de-camp", position: [411, 241] },
-  { modele: "feu-de-camp", position: [430, 233] },
-  { modele: "feu-de-camp", position: [427, 245] },
-  { modele: "feu-de-camp", position: [411, 230] },
+  // Terres libres : le carrefour du feu (marmite, panneau, stèle, vieille charrette, clôtures).
+  { modele: "marmite", position: [700, 470], angle: 20 },
+  { modele: "panneau", position: [705, 465], angle: 200 },
+  { modele: "lanterne", position: [706, 466.5] },
+  { modele: "stele-moussue", position: [714, 480], angle: 160, solide: [1.3, 1.6, 0.7] },
+  { modele: "charrette", position: [688, 482], angle: 40, solide: [2.3, 1.4, 3.5] },
+  { modele: "cloture", position: [692, 462], angle: 10 },
+  { modele: "cloture", position: [693.5, 461.7], angle: 10 },
+  { modele: "cloture", position: [714, 462], angle: 80 },
+  { modele: "rocher-2", position: [691, 476], echelle: 0.5 },
+
+  // Cité volcanique : braseros autour de la place, forges, bannières devant la demeure du chef.
+  { modele: "brasero", position: [411, 241] },
+  { modele: "brasero", position: [430, 233] },
+  { modele: "brasero", position: [427, 245] },
+  { modele: "brasero", position: [411, 230] },
+  { modele: "brasero", position: [401, 236] },
+  { modele: "brasero", position: [439, 238] },
+  { modele: "enclume", position: [405, 246], angle: 0, solide: [1.4, 1.5, 1.3] },
+  { modele: "brasero", position: [403, 248] },
+  { modele: "enclume", position: [436, 228], angle: 90, solide: [1.4, 1.5, 1.3] },
+  { modele: "brasero", position: [438, 226] },
+  { modele: "banniere", position: [412, 231], angle: 90 },
+  { modele: "banniere", position: [428, 231], angle: 90 },
 
   // La Corne : l'épave, et les ruines de l'ancien village.
   { modele: "epave-corne", position: [118, 262], angle: 40, solide: [6, 6, 16] },
@@ -642,11 +689,18 @@ export const DECORS: DecorUnique[] = [
   { modele: "champignon-2", position: [497, 583], echelle: 2.8 },
   { modele: "champignon-1", position: [494, 596], echelle: 2.5 },
   { modele: "champignon-2", position: [484, 595], echelle: 3.4 },
-  { modele: "tonneau", position: [492, 591], solide: [1.3, 1.2, 1.3] },
-  { modele: "tonneau", position: [487, 582], solide: [1.3, 1.2, 1.3] },
+  { modele: "chaudron", position: [484, 590], solide: [0.8, 1.2, 0.8] },
+  { modele: "chaudron", position: [496, 586], solide: [0.8, 1.2, 0.8] },
+  { modele: "chaudron", position: [520, 470], solide: [0.8, 1.2, 0.8] },
   { modele: "champignon-1", position: [516, 472], echelle: 3 },
   { modele: "champignon-2", position: [533, 474], echelle: 2.6 },
   { modele: "champignon-1", position: [528, 459], echelle: 3.4 },
+
+  // Royaume de glace : les fantômes du roi.
+  { modele: "fantome", position: [870, 110], angle: 90 },
+  { modele: "fantome", position: [858, 132], angle: 120 },
+  { modele: "fantome", position: [886, 126], angle: 60 },
+  { modele: "fantome", position: [866, 150], angle: 90 },
 
   // Forêt des sorcières : la cabane de la reine (le portail vers Scìyolia est dans son sous-sol).
   {
@@ -661,6 +715,18 @@ export const DECORS: DecorUnique[] = [
 
 /** Chemins de terre (largeur en m). */
 export const CHEMINS: Chemin[] = [
+  // Cité volcanique : des rigoles de lave qui descendent de la ville.
+  { id: "lave-ouest", points: [[390, 262], [380, 270], [368, 276]], largeur: 3.5, matiere: "lave" },
+  { id: "lave-sud", points: [[452, 258], [462, 268], [468, 280]], largeur: 3.5, matiere: "lave" },
+  { id: "lave-est", points: [[452, 210], [464, 202], [476, 196]], largeur: 3.5, matiere: "lave" },
+  { id: "lave-nord", points: [[388, 210], [378, 200], [372, 188]], largeur: 3.5, matiere: "lave" },
+  {
+    // Village blanc : la rue circulaire, entre le premier et le deuxième anneau de maisons.
+    id: "rue-ronde",
+    points: [[1016, 635], [1011, 648], [998, 653], [985, 648], [980, 635], [985, 622], [998, 617], [1011, 622], [1016, 635]],
+    largeur: 4,
+    lanternes: 14,
+  },
   {
     // Village blanc : de la porte des remparts à la place du feu.
     id: "grand-rue",
@@ -675,6 +741,7 @@ export const CHEMINS: Chemin[] = [
     points: [[977, 608], [964, 601], [938, 592], [930, 584], [926, 573], [919, 563], [906, 555], [900, 545], [887, 533], [865, 525], [845, 519], [820, 511], [800, 505], [775, 497], [750, 486], [725, 476], [700, 470]],
     largeur: 5,
     lanternes: 30,
+    clotures: 160,
   },
   {
     // Terres libres → la côte face à la cabane de la reine (la mer sépare : on y entre par la forêt).
@@ -734,6 +801,26 @@ export const BOIS: Bois[] = [
     zone: [[320, 855], [336, 882], [326, 877], [315, 878], [310, 882], [310, 899], [279, 922], [284, 925], [300, 925], [315, 901], [317, 889], [326, 883], [332, 883], [340, 874], [340, 851], [327, 844], [322, 847], [321, 852]],
     vegetation: "foret-doree",
     densite: 40,
+  },
+  {
+    // Village blanc : deux bosquets dorés sur les flancs…
+    zone: [[944, 612], [932, 619], [933, 665], [966, 703], [985, 700], [962, 672], [957, 640]],
+    vegetation: "foret-doree",
+    densite: 70,
+    fleurs: 600,
+  },
+  {
+    zone: [[1003, 592], [1019, 576], [1045, 579], [1059, 591], [1072, 638], [1064, 649], [1035, 668], [1022, 656], [1041, 644], [1045, 630], [1037, 607], [1016, 599]],
+    vegetation: "foret-doree",
+    densite: 70,
+    fleurs: 600,
+  },
+  {
+    // … et un pré fleuri ouvert devant la porte.
+    zone: [[978, 600], [960, 600], [930, 575], [915, 545], [945, 540], [985, 580], [1000, 595]],
+    vegetation: "foret-doree",
+    densite: 0,
+    fleurs: 1500,
   },
   {
     // Terres de glace : un bois de pins givrés au-dessus du feu (le feu reste en clairière).

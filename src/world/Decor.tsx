@@ -4,9 +4,13 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BARRIERES, BOIS as BOIS_DESSINES, REGIONS, VILLAGES, VOLCANS } from "../content/monde";
 import type { DecorUnique, Vegetation as TypeVegetation } from "../content/types";
+import { barriereOuverte, useJeu } from "../game/store";
 import { LEGER } from "../qualite";
 import { BrumeSorcieres } from "./BrumeSorcieres";
-import { centreCellule, laCarte, MER, regionA, versCarte, versMonde } from "./carte";
+import { rotationFace } from "./geometrie";
+import { Herbe } from "./Herbe";
+import { Fumees, Halos, LUEURS } from "./Lueurs";
+import { centreCellule, indiceCellule, laCarte, MER, regionA, versCarte, versMonde } from "./carte";
 import { Chemins } from "./Chemins";
 import { Instances, InstancesModele, matrice, Modele, modeleExiste } from "./modeles";
 import { lePlan, LONGUEUR_QUAI, type Maison } from "./plan";
@@ -81,6 +85,8 @@ type Semis = {
   bosquets?: "dans" | "hors";
   marge: number;
   villages?: boolean;
+  /** Rochers de falaise : ils laissent libres décors, feux, objets et abords des ponts. */
+  falaise?: boolean;
 };
 
 const variantes = (nom: string, n: number) => Array.from({ length: n }, (_, i) => `${nom}-${i + 1}`);
@@ -97,7 +103,7 @@ const arbres = (nom: string, n: number, densite: number, bosquets?: "dans"): Sem
 });
 const BUISSONS: Semis = { densite: 6, variantes: variantes("buisson", 2), forme: "buisson", penteMax: 0.8, hauteurMin: 2.5, echelle: [0.9, 1.8], bosquets: "dans", marge: 1.5 };
 const ROCHERS_EPARS: Semis = {
-  densite: 0.8,
+  densite: 1.5,
   variantes: variantes("rocher", 3),
   forme: "rocher",
   penteMax: 1.3,
@@ -110,11 +116,12 @@ const ROCHERS_EPARS: Semis = {
 const HERBES: Semis = { densite: 250, variantes: variantes("herbe", 2), forme: "herbe", penteMax: 1, hauteurMin: 1, echelle: [1.2, 2.2], marge: 0.5, villages: true };
 const FLEURS: Semis = {
   densite: 40,
-  variantes: ["fleur-jaune", "fleur-rouge", "fleur-violette"],
+  // Une fleur sur quatre est blanche, comme dans les prés des rendus.
+  variantes: ["fleur-blanche", "fleur-blanche", "fleur-jaune", "fleur-jaune-2", "fleur-rouge", "fleur-rouge-2", "fleur-violette", "fleur-violette-2"],
   forme: "fleur",
   penteMax: 0.8,
   hauteurMin: 1.5,
-  echelle: [1.2, 2],
+  echelle: [0.9, 1.4],
   bosquets: "hors",
   marge: 0.5,
   villages: true,
@@ -122,13 +129,30 @@ const FLEURS: Semis = {
 const BOIS_MORT: Semis = { densite: 1, variantes: ["souche", "tronc"], forme: "souche", penteMax: 0.7, hauteurMin: 2, echelle: [0.8, 1.3], bosquets: "dans", marge: 2 };
 const CHAMPIGNONS: Semis = { densite: 10, variantes: variantes("champignon", 2), forme: "fleur", penteMax: 0.9, hauteurMin: 1.5, echelle: [1, 2.2], marge: 0.5 };
 
+/**
+ * Falaises : de gros rochers à facettes posés serrés le long des côtes hautes (au moins `hauteurMin` m),
+ * à moitié enfoncés, pour des côtes taillées plutôt qu'une pente lisse. Densité : environ 7 rochers sur 10
+ * cellules de côte (6 × 6 m).
+ */
+const FALAISES: Semis = {
+  densite: 190,
+  variantes: variantes("rocher", 3),
+  forme: "rocher",
+  penteMax: 9,
+  hauteurMin: 3,
+  echelle: [2.5, 4.5],
+  obstacle: { rayon: 1.2, hauteur: 2 },
+  marge: 3,
+  falaise: true,
+};
+
 /** Formes des petites plantes : sans ombre portée, et absentes du mode léger. */
 const PETITES = new Set(["herbe", "fleur"]);
 
 const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
   "foret-doree": [arbres("arbre-dore", 6, 5, "dans"), BUISSONS, HERBES, FLEURS, BOIS_MORT],
   "foret-sombre": [arbres("arbre-sorciere", 3, 25), { ...BUISSONS, densite: 8, bosquets: undefined }, CHAMPIGNONS, { ...HERBES, densite: 30 }, BOIS_MORT],
-  "pins-enneiges": [arbres("pin-enneige", 5, 14, "dans"), { ...BOIS_MORT, densite: 0.5 }, { ...ROCHERS_EPARS, densite: 2 }],
+  "pins-enneiges": [arbres("pin-enneige", 5, 14, "dans"), { ...BOIS_MORT, densite: 0.5 }, { ...ROCHERS_EPARS, densite: 2.5, variantes: variantes("rocher-glace", 3) }],
   "arbres-morts": [{ ...arbres("arbre-mort", 2, 4, "dans"), echelle: [0.7, 1.2] }, { ...BOIS_MORT, densite: 2 }, { ...ROCHERS_EPARS, densite: 1.5 }],
   rochers: [{ ...ROCHERS_EPARS, densite: 3, echelle: [0.8, 2.6] }, { ...HERBES, densite: 120 }],
 };
@@ -141,7 +165,6 @@ function Vegetation() {
   const parVariante = useMemo(() => {
     const c = laCarte();
     const plan = lePlan();
-    const hasard = graine(3);
     const barrieres = BARRIERES.map((b) => versMonde(b.position));
     // Ponts, pontons, chemins et remparts : rien ne pousse dessus (la marge dépend de la plante).
     const passages = [
@@ -165,8 +188,28 @@ function Vegetation() {
       const type = REGIONS[ri].vegetation;
       if (type !== "aucune") plantations.push({ liste, semis: [...SEMIS[type], ROCHERS_EPARS], ici: (x, z) => regionA(x, z) === ri });
     }
+    // Les cellules de terre au bord de la mer.
+    const cote: number[] = [];
+    for (let i = 0; i < c.region.length; i++) if (c.region[i] !== MER && c.distTerre[i] <= 2) cote.push(i);
+    const surCote = (x: number, z: number) => {
+      const i = indiceCellule(x, z);
+      return i >= 0 && c.region[i] !== MER && c.distTerre[i] <= 2;
+    };
+    // Sur les côtes glacées, des rochers givrés.
+    const glacee = (i: number) => ["glace", "iceberg"].includes(REGIONS[c.region[i]].id);
+    const glacees = new Set(REGIONS.flatMap((r, i) => (["glace", "iceberg"].includes(r.id) ? [i] : [])));
+    plantations.push({ liste: cote.filter((i) => !glacee(i)), semis: [FALAISES], ici: (x, z) => surCote(x, z) && !glacees.has(regionA(x, z)) });
+    plantations.push({
+      liste: cote.filter(glacee),
+      semis: [{ ...FALAISES, variantes: variantes("rocher-glace", 3) }],
+      ici: (x, z) => surCote(x, z) && glacees.has(regionA(x, z)),
+    });
+
     for (const b of BOIS_DESSINES) {
-      const dans = (x: number, z: number) => regionA(x, z) !== MER && dansZone(versCarte(x, z), b.zone);
+      const dans = (x: number, z: number) => {
+        const p = versCarte(x, z);
+        return regionA(x, z) !== MER && dansZone(p, b.zone) && !(b.trou && dansZone(p, b.trou));
+      };
       const liste = [];
       for (let i = 0; i < c.region.length; i++) if (dans(...centreCellule(i))) liste.push(i);
       // Un bois : des arbres serrés (densité absolue), des pentes plus fortes acceptées, du sous-bois.
@@ -176,6 +219,7 @@ function Vegetation() {
         semis: [
           { ...arbresBois, densite: b.densite, bosquets: undefined, penteMax: 0.9 },
           { ...buissons, densite: buissons.densite * 2, bosquets: undefined },
+          ...(b.fleurs ? [{ ...FLEURS, densite: b.fleurs, bosquets: undefined }] : []),
         ],
         ici: dans,
       });
@@ -184,8 +228,22 @@ function Vegetation() {
     const hectares = (c.pas * c.pas) / 10000;
     const sortie = new Map<string, { forme: string; matrices: THREE.Matrix4[] }>();
     const obstacles: { x: number; y: number; z: number; r: number; h: number }[] = [];
+    // Les rochers de falaise laissent libres les décors, feux, objets, potagers et abords des ponts.
+    const reserves: [number, number][] = [
+      ...plan.decors.map((d) => [d.x, d.z] as [number, number]),
+      ...[plan.feux, plan.indices, plan.ramassables].flatMap((r) => Object.values(r).map((p) => [p.x, p.z] as [number, number])),
+      ...plan.jardins.map((j) => [j.x, j.z] as [number, number]),
+      ...plan.ponts.flatMap((p) => {
+        const l = Math.hypot(p.bx - p.ax, p.bz - p.az) || 1;
+        const [ux, uz] = [(p.bx - p.ax) / l, (p.bz - p.az) / l];
+        return [0, 6, 12].flatMap((d) => [[p.ax - ux * d, p.az - uz * d], [p.bx + ux * d, p.bz + uz * d]] as [number, number][]);
+      }),
+    ];
+    // Un générateur par semis : sauter un semis (mode léger) ne déplace pas tous les suivants.
+    let numero = 0;
     for (const { liste, semis, ici } of plantations) {
       for (const s of semis) {
+        const hasard = graine(1000 + numero++);
         if (LEGER && PETITES.has(s.forme)) continue;
         // En bosquets, on tire 2,5 fois plus de candidats : environ 40 % tombent dans un bosquet.
         // Des instances : même par dizaines de milliers, elles coûtent peu.
@@ -211,6 +269,7 @@ function Vegetation() {
           if (passages.some((pt) => distanceSegment(x, z, pt.ax, pt.az, pt.bx, pt.bz).d < pt.demi + s.marge)) continue;
           if (barrieres.some(([bx, bz]) => Math.hypot(bx - x, bz - z) < 30)) continue;
           if (!s.villages && s.forme !== "rocher" && clairieres.some((cl) => Math.hypot(cl.c[0] - x, cl.c[1] - z) < cl.r)) continue;
+          if (s.falaise && reserves.some(([rx, rz]) => Math.hypot(rx - x, rz - z) < e * 1.2 + 2)) continue;
 
           const entree = sortie.get(variante) ?? { forme: s.forme, matrices: [] };
           // Enfoncé un peu, davantage sur une pente : jamais un pied dans le vide.
@@ -293,7 +352,8 @@ function MaisonsProvisoires({ maisons }: { maisons: Maison[] }) {
 }
 
 function Villages() {
-  const { maisons } = lePlan();
+  const { maisons, jardins } = lePlan();
+  const potagers = useMemo(() => jardins.map((j) => matrice(j.x, j.y - 0.05, j.z, j.rot)), [jardins]);
   const parModele = useMemo(() => {
     const m = new Map<string, Maison[]>();
     for (const maison of maisons) m.set(maison.modele, [...(m.get(maison.modele) ?? []), maison]);
@@ -304,6 +364,7 @@ function Villages() {
       {parModele.map(([id, liste]) => (
         <InstancesModele key={id} modele={id} matrices={liste.map((m) => matrice(m.x, m.y, m.z, m.rot))} provisoire={<MaisonsProvisoires maisons={liste} />} />
       ))}
+      <InstancesModele modele="potager" matrices={potagers} provisoire={null} ombre={false} />
       <RigidBody type="fixed" colliders={false}>
         {maisons.map((m, i) => (
           <CuboidCollider key={i} args={[m.l / 2, (m.h + 1.5) / 2, m.p / 2]} position={[m.x, m.y - 1.5 + (m.h + 1.5) / 2, m.z]} rotation={[0, m.rot, 0]} />
@@ -460,27 +521,77 @@ function Feux() {
 
 const GLACE = new THREE.MeshStandardMaterial({ color: "#d6f1fb", roughness: 0.1, metalness: 0.1, emissive: "#7fc9ea", emissiveIntensity: 0.15 });
 
-/** Palais givré : le modèle, ou des flèches de glace provisoires. */
+/** Palais givré : le modèle, entouré de pics de glace (ils restent même quand le modèle existe). */
 function PalaisGivre() {
   const p = lePlan().palais;
   const fleches = useMemo(() => {
     const r = graine(77);
-    return Array.from({ length: 9 }, () => {
-      const x = (r() - 0.5) * 34;
-      const z = (r() - 0.5) * 34;
-      return { x, z, y: hauteurTerrain(p.x + x, p.z + z) - p.y, h: 14 + r() * 26 };
+    return Array.from({ length: 16 }, (_, i) => {
+      const a = (i / 16) * Math.PI * 2 + r() * 0.3;
+      const d = 21 + r() * 12;
+      const [x, z] = [Math.cos(a) * d, Math.sin(a) * d];
+      return { x, z, y: hauteurTerrain(p.x + x, p.z + z) - p.y, h: 7 + r() * 14, inclinaison: (r() - 0.5) * 0.3 };
     });
   }, [p]);
   return (
     <group position={[p.x, p.y, p.z]}>
-      <Modele
-        modele="palais-givre"
-        provisoire={fleches.map((f, i) => (
-          <mesh key={i} material={GLACE} position={[f.x, f.y + f.h / 2 - 1, f.z]} castShadow>
-            <coneGeometry args={[2.5, f.h, 6]} />
-          </mesh>
-        ))}
-      />
+      <Modele modele="palais-givre" />
+      {fleches.map((f, i) => (
+        <mesh key={i} material={GLACE} position={[f.x, f.y + f.h / 2 - 1, f.z]} rotation-z={f.inclinaison} castShadow>
+          <coneGeometry args={[1.8, f.h, 6]} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Le portail runique : un anneau de magie violette, une rune au centre, tant que la barrière est fermée. */
+function PortailRunique() {
+  const b = BARRIERES.find((x) => x.id === "portail-runique");
+  const ouvert = useJeu((s) => !!b && barriereOuverte(b, s));
+  const anneau = useRef<THREE.Mesh>(null);
+  const pos = useMemo(() => {
+    if (!b) return null;
+    const [x, z] = versMonde(b.position);
+    return { x, z, y: hauteurTerrain(x, z) };
+  }, [b]);
+  const rune = useMemo(() => {
+    const t = document.createElement("canvas");
+    t.width = t.height = 128;
+    const g = t.getContext("2d")!;
+    g.strokeStyle = "#f2dcff";
+    g.lineWidth = 9;
+    g.lineCap = "round";
+    g.beginPath();
+    g.moveTo(64, 22);
+    g.lineTo(64, 106);
+    g.moveTo(64, 50);
+    g.lineTo(92, 34);
+    g.moveTo(64, 72);
+    g.lineTo(38, 56);
+    g.moveTo(64, 88);
+    g.lineTo(88, 100);
+    g.stroke();
+    return new THREE.CanvasTexture(t);
+  }, []);
+  useFrame((state) => {
+    if (anneau.current) anneau.current.rotation.z = state.clock.elapsedTime * 0.4;
+  });
+  if (!b || !pos || ouvert) return null;
+  return (
+    <group position={[pos.x, pos.y + 4.5, pos.z]} rotation-y={rotationFace(b.angle)}>
+      <mesh ref={anneau}>
+        <torusGeometry args={[3.6, 0.35, 10, 48]} />
+        <meshBasicMaterial color={new THREE.Color(2.2, 1.2, 3.2)} toneMapped={false} />
+      </mesh>
+      <mesh>
+        <circleGeometry args={[3.3, 40]} />
+        <meshBasicMaterial color="#6a3aa8" transparent opacity={0.55} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh position-z={0.05}>
+        <planeGeometry args={[3, 3]} />
+        <meshBasicMaterial map={rune} transparent color={new THREE.Color(2, 1.6, 2.4)} toneMapped={false} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
     </group>
   );
 }
@@ -550,6 +661,16 @@ function Lave() {
  */
 function DecorsUniques() {
   const decors = lePlan().decors.filter((d) => modeleExiste(d.def.modele) || d.def.substitut);
+  // Les décors qui éclairent : un halo par sorte (couleur, taille).
+  const lueurs = useMemo(
+    () =>
+      Object.entries(LUEURS).map(([modele, l]) => ({
+        ...l,
+        modele,
+        positions: decors.filter((d) => d.def.modele === modele).map((d) => [d.x, d.y + l.hauteur * (d.def.echelle ?? 1), d.z] as [number, number, number]),
+      })),
+    [decors],
+  );
   return (
     <>
       {decors.map((d, i) => (
@@ -561,6 +682,9 @@ function DecorsUniques() {
           scale={d.def.echelle ?? 1}
           provisoire={d.def.substitut && <MaisonProvisoire substitut={d.def.substitut} />}
         />
+      ))}
+      {lueurs.map((l) => (
+        <Halos key={l.modele} positions={l.positions} couleur={l.couleur} taille={l.taille} />
       ))}
       <RigidBody type="fixed" colliders={false}>
         {decors
@@ -596,8 +720,11 @@ export function Decor() {
       <Ponts />
       <Feux />
       <PalaisGivre />
+      <PortailRunique />
       <Lave />
       <DecorsUniques />
+      <Fumees />
+      <Herbe />
       <Remparts />
       <Chemins />
       <BrumeSorcieres />

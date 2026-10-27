@@ -114,12 +114,28 @@ function lesGrilles(): Grilles {
     }
     const r = REGIONS[c.region[i]];
     // Près de la côte, le sol rejoint la mer (plages, ou falaises si la région est haute).
-    const cote = smoothstep(0, 3, c.distTerre[i]);
+    const [x, z] = [(i % c.largeur + 0.5 - c.largeur / 2) * c.pas, (Math.floor(i / c.largeur) + 0.5 - c.hauteur / 2) * c.pas];
+    const plage = r.plages?.some((p) => {
+      const [px, pz] = versMonde(p.position);
+      return Math.hypot(px - x, pz - z) < p.rayon;
+    });
+    const cote = r.cotes === "falaises" && !plage ? smoothstep(0, 1, c.distTerre[i]) : smoothstep(0, 3, c.distTerre[i]);
     altitude[i] = 1.5 + (r.relief.altitude - 1.5) * cote;
     amplitude[i] = r.relief.amplitude * smoothstep(0, 6, c.distTerre[i]);
     montagne[i] = r.relief.montagne;
   }
+  // Côtes en falaises : le lissage les arrondirait ; on garde le plateau jusqu'au bord, après coup.
+  const falaise = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    if (c.region[i] === MER) continue;
+    const r = REGIONS[c.region[i]];
+    if (r.cotes !== "falaises" || c.distTerre[i] < 1) continue;
+    const [x, z] = [(i % c.largeur + 0.5 - c.largeur / 2) * c.pas, (Math.floor(i / c.largeur) + 0.5 - c.hauteur / 2) * c.pas];
+    if (r.plages?.some((p) => Math.hypot(versMonde(p.position)[0] - x, versMonde(p.position)[1] - z) < p.rayon)) continue;
+    falaise[i] = r.relief.altitude;
+  }
   flouter(altitude, c.largeur, c.hauteur, 2);
+  for (let i = 0; i < N; i++) if (falaise[i] > 0) altitude[i] = Math.max(altitude[i], falaise[i]);
   flouter(amplitude, c.largeur, c.hauteur, 3);
   flouter(montagne, c.largeur, c.hauteur, 3);
   // Assez flouté pour arrondir les marches du trait de côte (une cellule de carte = 6 m).

@@ -3,7 +3,7 @@ import type { DecorUnique, Pont, Port, Px, Village } from "../content/types";
 import { centreCellule, indiceCellule, laCarte, MER, regionA, versMonde } from "./carte";
 import { rotationFace } from "./geometrie";
 import { segments, tracesAuSol } from "./zones";
-import { definirPlateformes, definirPonts, distanceSegment, graine, hauteurBrute, hauteurSol, type Plateforme, type PontPlace } from "./relief";
+import { definirPlateformes, definirPonts, distanceSegment, graine, hauteurBrute, hauteurSol, NIVEAU_MER, type Plateforme, type PontPlace } from "./relief";
 
 /**
  * Le plan du monde : où se pose chaque chose, calculé une fois au chargement.
@@ -33,6 +33,8 @@ export type Plan = {
   /** Ponts suspendus (sans les pontons des quais). */
   ponts: PontPlace[];
   maisons: Maison[];
+  /** Potagers derrière les maisons (rot : la clôture ouverte vers la maison). */
+  jardins: (Point & { rot: number })[];
   decors: Decor[];
   portail: Point;
   palais: Point;
@@ -277,6 +279,40 @@ function emplacements(v: Village, cx: number, cz: number, hasard: () => number):
   });
 }
 
+/** Potager (5,3 × 3,6 m) : son demi-encombrement, et l'écart laissé derrière la maison. */
+const JARDIN = { demi: 4.2, ecart: 1.5 };
+
+/** Un potager derrière une partie des maisons des villages qui en ont, là où il y a la place. */
+function placerJardins(maisons: Maison[], occupe: Plateforme[], hasard: () => number) {
+  const jardins: (Point & { rot: number })[] = [];
+  for (const m of maisons) {
+    const v = m.village;
+    if (!v.jardins || hasard() > v.jardins) continue;
+    const [s, c] = [Math.sin(m.rot), Math.cos(m.rot)];
+    // Derrière la maison (à l'opposé de sa façade, axe +Z tourné de m.rot), sinon sur un côté.
+    const arriere = m.p / 2 + JARDIN.ecart + JARDIN.demi * 0.7;
+    const cote = m.l / 2 + JARDIN.ecart + JARDIN.demi * 0.8;
+    const places = [
+      [-s * arriere, -c * arriere],
+      [c * cote, -s * cote],
+      [-c * cote, s * cote],
+    ];
+    for (const [dx, dz] of places) {
+      const [x, z] = [m.x + dx, m.z + dz];
+      // (la plateforme de la maison elle-même ne compte pas)
+      if (occupe.some((o) => !o.commun && (o.x !== m.x || o.z !== m.z) && Math.hypot(o.x - x, o.z - z) < o.rayon + JARDIN.demi - 0.5)) continue;
+      if (tracesAuSol().some((t) => distanceSegment(x, z, ...t.s).d < t.demi + JARDIN.demi)) continue;
+      // (sur le sol commun d'un village en anneaux, le relief est déjà aplani)
+      const plateau = v.disposition?.type === "place" && v.plateau !== false;
+      if (!plateau && Math.abs(hauteurBrute(x, z) - m.y) > 2.5) continue;
+      occupe.push({ x, z, rayon: JARDIN.demi, fondu: 4, hauteur: m.y });
+      jardins.push({ x, y: m.y, z, rot: m.rot });
+      break;
+    }
+  }
+  return jardins;
+}
+
 function placerVillage(v: Village, occupe: Plateforme[], ponts: PontPlace[], hasard: () => number): Maison[] {
   const c = laCarte();
   const [cx, cz] = terreFerme(v.centre, 1);
@@ -375,6 +411,7 @@ export function planifier(): Plan {
   const hasard = graine(21);
   const tousPonts = [...ponts, ...quais.map((q) => q.ponton)];
   const maisons = VILLAGES.flatMap((v) => placerVillage(v, plateformes, tousPonts, hasard));
+  const jardins = placerJardins(maisons, plateformes, hasard);
 
   definirPlateformes(plateformes);
   definirPonts(tousPonts);
@@ -394,7 +431,9 @@ export function planifier(): Plan {
     ports: Object.fromEntries(quais.map((q) => [q.id, q.quai])),
     ponts,
     maisons: maisons.map(auSol),
-    decors: decors.map(auSol),
+    jardins: jardins.map(auSol),
+    // (ce qui flotte reste à la surface de l'eau)
+    decors: decors.map(auSol).map((d) => (d.def.flotte ? { ...d, y: Math.max(d.y, NIVEAU_MER - 0.3) } : d)),
     portail: auSol(portail),
     palais: auSol(palais),
   };

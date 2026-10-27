@@ -1,16 +1,16 @@
 import { KeyboardControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
-import { Bloom, EffectComposer, ToneMapping, Vignette } from "@react-three/postprocessing";
+import { Bloom, BrightnessContrast, EffectComposer, GodRays, HueSaturation, N8AO, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import * as THREE from "three";
 import { ObjetEnMain } from "./player/FormeObjet";
 import { Joueur, TOUCHES } from "./player/Joueur";
 import { LEGER } from "./qualite";
 import { preparerCarte } from "./ui/Carte";
 import { Interface } from "./ui/Interface";
-import { Atmosphere } from "./world/Atmosphere";
+import { Atmosphere, SOLEIL } from "./world/Atmosphere";
 import { Barrieres } from "./world/Barrieres";
 import { bornes, carteComprise, chargerCarte, MER, regionA, versMonde } from "./world/carte";
 import { REGIONS } from "./content/monde";
@@ -85,7 +85,42 @@ export default function App() {
   return <Monde />;
 }
 
+/** Disque du soleil, loin dans sa direction (il suit la caméra) : la source des rayons dans la brume. */
+function DisqueSoleil({ disque, pret }: { disque: RefObject<THREE.Mesh | null>; pret: () => void }) {
+  useEffect(pret, [pret]);
+  useFrame(({ camera }) => {
+    disque.current?.position.copy(camera.position).addScaledVector(SOLEIL, 2500);
+  });
+  return (
+    <mesh ref={disque}>
+      <sphereGeometry args={[90, 16, 8]} />
+      <meshBasicMaterial color="#ffe2b0" fog={false} />
+    </mesh>
+  );
+}
+
+/**
+ * L'image finale : ombres de contact (N8AO), rayons de soleil dans la brume, lueurs, couleurs
+ * réchauffées et un peu plus saturées, coins assombris : un rendu plus « peint ».
+ */
+function Image({ soleil }: { soleil: THREE.Mesh | null }) {
+  return (
+    <EffectComposer>
+      <N8AO aoRadius={2.5} intensity={2.2} distanceFalloff={1} halfRes color="#3a2a1a" />
+      {soleil ? <GodRays sun={soleil} samples={40} density={0.92} decay={0.93} weight={0.35} exposure={0.45} clampMax={1} blur /> : <></>}
+      <Bloom intensity={0.85} luminanceThreshold={0.72} luminanceSmoothing={0.3} mipmapBlur />
+      <HueSaturation saturation={0.04} />
+      <BrightnessContrast brightness={0.02} contrast={0.08} />
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      <Vignette offset={0.25} darkness={0.55} />
+    </EffectComposer>
+  );
+}
+
 function Monde() {
+  const disque = useRef<THREE.Mesh>(null);
+  const [soleil, setSoleil] = useState<THREE.Mesh | null>(null);
+  const soleilPret = useCallback(() => setSoleil(disque.current), []);
   const depart = useMemo<[number, number]>(() => [lePlan().depart.x, lePlan().depart.z], []);
 
   return (
@@ -113,11 +148,10 @@ function Monde() {
           <ObjetEnMain />
           {/* Lumière dorée qui « bave » sur les zones brillantes, coins assombris : rendu cinéma. */}
           {!LEGER && (
-            <EffectComposer>
-              <Bloom intensity={0.7} luminanceThreshold={0.75} luminanceSmoothing={0.3} mipmapBlur />
-              <Vignette offset={0.25} darkness={0.65} />
-              <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-            </EffectComposer>
+            <>
+              <DisqueSoleil disque={disque} pret={soleilPret} />
+              <Image soleil={soleil} />
+            </>
           )}
         </Suspense>
       </Canvas>

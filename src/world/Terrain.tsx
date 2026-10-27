@@ -1,8 +1,10 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
-import { bornes, laCarte } from "./carte";
+import { VILLAGES } from "../content/monde";
+import { bornes, laCarte, versMonde } from "./carte";
 import { FOND_MARIN, NEIGE, SABLE, texturesSol } from "./couleurs";
+import { SOLEIL } from "./Atmosphere";
 import { hauteurTerrain, NIVEAU_MER } from "./relief";
 
 /**
@@ -109,6 +111,17 @@ function construireTuile(x0: number, z0: number, pas: number) {
 
 // ─── Matériau : couleur calculée pour chaque pixel, en coordonnées du monde ─
 
+/** Places de terre battue au centre des villages en anneaux : (x, z, rayon), jusqu'à MAX_PLACES. */
+const MAX_PLACES = 8;
+export function placesVillages() {
+  const places = VILLAGES.filter((v) => v.disposition?.type === "place" && v.plateau !== false).map((v) => {
+    const [x, z] = versMonde(v.centre);
+    return new THREE.Vector3(x, z, Math.max(10, v.rayon * 0.3) + 2);
+  });
+  while (places.length < MAX_PLACES) places.push(new THREE.Vector3(0, 0, 0));
+  return places.slice(0, MAX_PLACES);
+}
+
 const GLSL_SOL = /* glsl */ `
 uniform sampler2D uHerbe;
 uniform sampler2D uRoche;
@@ -116,6 +129,8 @@ uniform vec2 uTaille;
 uniform vec3 uSable;
 uniform vec3 uFond;
 uniform vec3 uNeige;
+// Places des villages en terre battue : (x, z, rayon) en m.
+uniform vec3 uPlaces[${MAX_PLACES}];
 varying vec3 vPosMonde;
 varying vec3 vNormaleMonde;
 
@@ -193,6 +208,16 @@ vec3 couleurSol(vec3 pos, vec3 n) {
   float tRoche = smoothstep(0.12, 0.38, pente + (moyennes - 0.5) * 0.2);
   c = mix(c, cRoche, tRoche);
 
+  // Places des villages : de la terre battue, au bord irrégulier.
+  for (int i = 0; i < ${MAX_PLACES}; i++) {
+    vec3 pl = uPlaces[i];
+    if (pl.z <= 0.0) continue;
+    float d = distance(pos.xz, pl.xy) + (moyennes - 0.5) * 6.0;
+    float t = 1.0 - smoothstep(pl.z - 3.0, pl.z, d);
+    vec3 terre = mix(vec3(0.54, 0.42, 0.28), vec3(0.66, 0.55, 0.38), grain) * (0.9 + 0.2 * fin);
+    c = mix(c, terre, t * (1.0 - tRoche));
+  }
+
   // Plages, juste au-dessus de l'eau.
   float tSable = 1.0 - smoothstep(1.6, 3.4, pos.y + (moyennes - 0.5) * 1.4);
   c = mix(c, uSable * (0.9 + 0.16 * grain), tSable * (1.0 - tRoche * 0.7));
@@ -215,6 +240,7 @@ function materiauTerrain() {
     uSable: { value: new THREE.Color(SABLE) },
     uFond: { value: new THREE.Color(FOND_MARIN) },
     uNeige: { value: new THREE.Color(NEIGE) },
+    uPlaces: { value: placesVillages() },
   };
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -323,13 +349,102 @@ export function Terrain({ pasFixe, depart }: { pasFixe?: number; depart?: [numbe
 }
 
 /** La mer : une grande surface légèrement transparente. */
+/** Profondeur de l'eau en chaque cellule de carte (0 sur terre, 1 à 24 m et plus), pour colorer la mer. */
+function textureProfondeur() {
+  const c = laCarte();
+  const donnees = new Uint8Array(c.largeur * c.hauteur);
+  for (let j = 0; j < c.hauteur; j++)
+    for (let i = 0; i < c.largeur; i++) {
+      const x = (i + 0.5 - c.largeur / 2) * c.pas;
+      const z = (j + 0.5 - c.hauteur / 2) * c.pas;
+      donnees[j * c.largeur + i] = Math.min(255, Math.max(0, (NIVEAU_MER - hauteurTerrain(x, z)) * (255 / PROFONDEUR_MAX)));
+    }
+  const t = new THREE.DataTexture(donnees, c.largeur, c.hauteur, THREE.RedFormat, THREE.UnsignedByteType);
+  t.magFilter = t.minFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+/** Profondeur codée au plus (m) : au-delà, c'est le large. */
+const PROFONDEUR_MAX = 24;
+
+/**
+ * La mer : turquoise clair sur les hauts-fonds, bleu profond au large, une ligne d'écume
+ * animée le long des côtes, et des reflets du soleil qui scintillent sur les vaguelettes.
+ */
+function materiauEau() {
+  const c = laCarte();
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    fog: true,
+    uniforms: THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      {
+        uProfondeur: { value: null },
+        uTaille: { value: new THREE.Vector2(c.largeur * c.pas, c.hauteur * c.pas) },
+        uTemps: { value: 0 },
+        uSoleil: { value: SOLEIL.clone() },
+        uClair: { value: new THREE.Color("#5cbdb3") },
+        uMoyen: { value: new THREE.Color("#2a7e94") },
+        uProfond: { value: new THREE.Color("#1b4a62") },
+      },
+    ]),
+    vertexShader: /* glsl */ `
+      varying vec3 vMonde;
+      #include <fog_pars_vertex>
+      void main() {
+        vec4 monde = modelMatrix * vec4(position, 1.0);
+        vMonde = monde.xyz;
+        vec4 mvPosition = viewMatrix * monde;
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D uProfondeur;
+      uniform vec2 uTaille;
+      uniform float uTemps;
+      uniform vec3 uSoleil, uClair, uMoyen, uProfond;
+      varying vec3 vMonde;
+      #include <fog_pars_fragment>
+      void main() {
+        vec2 uv = vMonde.xz / uTaille + 0.5;
+        bool dedans = all(greaterThan(uv, vec2(0.0))) && all(lessThan(uv, vec2(1.0)));
+        float d = dedans ? texture2D(uProfondeur, uv).r * ${PROFONDEUR_MAX.toFixed(1)} : ${PROFONDEUR_MAX.toFixed(1)};
+        vec3 c = mix(uClair, uMoyen, smoothstep(0.5, 6.0, d));
+        c = mix(c, uProfond, smoothstep(6.0, 20.0, d));
+        // Vaguelettes : une normale qui ondule, pour les reflets du soleil.
+        vec2 p = vMonde.xz;
+        vec3 n = normalize(vec3(
+          sin(p.x * 0.21 + uTemps * 1.1) * 0.06 + sin(p.y * 0.37 - uTemps * 0.7 + p.x * 0.1) * 0.05,
+          1.0,
+          cos(p.y * 0.19 + uTemps * 0.9) * 0.06 + sin(p.x * 0.33 + p.y * 0.12 + uTemps * 1.3) * 0.05));
+        vec3 vue = normalize(cameraPosition - vMonde);
+        float reflet = pow(max(dot(reflect(-uSoleil, n), vue), 0.0), 90.0);
+        c += vec3(1.0, 0.95, 0.85) * reflet * 0.9;
+        // Écume : une bande claire au rivage, qui va et vient.
+        float vague = 0.5 + 0.5 * sin(d * 5.0 - uTemps * 1.6 + sin(p.x * 0.05 + p.y * 0.04) * 3.0);
+        float ecume = (1.0 - smoothstep(0.0, 0.7, d)) + (1.0 - smoothstep(0.6, 1.6, d)) * smoothstep(0.75, 0.95, vague) * 0.8;
+        c = mix(c, vec3(0.97, 0.98, 0.96), clamp(ecume, 0.0, 1.0) * 0.85);
+        gl_FragColor = vec4(c, mix(0.72, 0.95, smoothstep(0.3, 8.0, d)));
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }`,
+  });
+}
+
 export function Eau() {
   const { demiLargeur, demiHauteur } = bornes();
+  const materiau = useMemo(() => {
+    const m = materiauEau();
+    m.uniforms.uProfondeur.value = textureProfondeur();
+    return m;
+  }, []);
+  useFrame((state) => {
+    materiau.uniforms.uTemps.value = state.clock.elapsedTime;
+  });
   return (
     <>
-      <mesh rotation-x={-Math.PI / 2} position-y={NIVEAU_MER}>
+      <mesh rotation-x={-Math.PI / 2} position-y={NIVEAU_MER} material={materiau}>
         <planeGeometry args={[demiLargeur * 2 + 4000, demiHauteur * 2 + 4000]} />
-        <meshStandardMaterial color="#2f6170" transparent opacity={0.86} roughness={0.15} metalness={0.2} />
       </mesh>
       {/* Fond marin au-delà de la carte : sous l'eau translucide, le bord du relief ne se voit plus. */}
       <mesh rotation-x={-Math.PI / 2} position-y={NIVEAU_MER - 16}>

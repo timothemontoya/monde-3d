@@ -5,6 +5,7 @@ import { CHEMINS, REGIONS } from "../content/monde";
 import type { Chemin } from "../content/types";
 import { MER, regionA, versMonde } from "./carte";
 import { InstancesModele, matrice } from "./modeles";
+import { Halos, VERRE_LANTERNE } from "./Lueurs";
 import { graine, hauteurTerrain } from "./relief";
 
 /** Pas entre deux rangées de sommets, en m (le sol a un sommet tous les 4 m). */
@@ -18,6 +19,8 @@ const TRAVERS: [number, number, number][] = [
   [0.32, 1, 0.7],
   [0.5, 0, 1],
 ];
+/** Longueur d'un élément de clôture (modèle « cloture »), en m. */
+const CLOTURE = 2.2;
 /** Le chemin flotte à peine au-dessus du sol affiché. */
 const DECOLLEMENT = 0.12;
 
@@ -28,6 +31,8 @@ const TERRES: Record<string, [string, string]> = {
   glace: ["#aebcc4", "#d3dde2"],
   iceberg: ["#aebcc4", "#d3dde2"],
   defaut: ["#7f6646", "#a8916a"],
+  // Rigole de lave : cœur jaune, bords rouges.
+  lave: ["#ffd25a", "#ff5a1a"],
 };
 const couleurs = Object.fromEntries(Object.entries(TERRES).map(([k, [a, b]]) => [k, [new THREE.Color(a), new THREE.Color(b)]]));
 const terreIci = (x: number, z: number) => {
@@ -79,6 +84,9 @@ function construire(c: Chemin, hasard: () => number) {
   const indices: number[] = [];
   const pierres: Bord[] = [];
   const lanternes: Bord[] = [];
+  const clotures: Bord[] = [];
+  // Tronçons de clôture : 3 à 5 éléments, puis une trouée, d'un côté ou de l'autre.
+  let troncon = { fin: 0, prochain: 6, cote: 1 };
   let prochainePierre = 4;
   let prochaineLanterne = c.lanternes ?? Infinity;
   p.forEach(([x, z], i) => {
@@ -88,7 +96,7 @@ function construire(c: Chemin, hasard: () => number) {
     const s = i * PAS;
     // Le chemin s'élargit et se resserre doucement.
     const largeur = c.largeur * (0.8 + 0.35 * bruitLargeur(s / 25, c.largeur));
-    const [orniere, bord] = terreIci(x, z);
+    const [orniere, bord] = c.matiere === "lave" ? couleurs.lave : terreIci(x, z);
     for (const [d, alpha, t] of TRAVERS) {
       const [vx, vz] = [x + nx * d * largeur, z + nz * d * largeur];
       const y = hauteurTerrain(vx, vz);
@@ -108,6 +116,17 @@ function construire(c: Chemin, hasard: () => number) {
       const y = hauteurTerrain(px, pz);
       if (y > 0.9) pierres.push({ x: px, y: y - 0.1, z: pz, rot: hasard() * Math.PI * 2, e: 0.15 + hasard() * 0.15 });
     }
+    if (c.clotures && s <= c.clotures) {
+      if (s >= troncon.prochain) {
+        const longueur = (3 + Math.floor(hasard() * 3)) * CLOTURE;
+        troncon = { fin: s + longueur, prochain: s + longueur + 10 + hasard() * 20, cote: hasard() < 0.5 ? -1 : 1 };
+      }
+      if (s < troncon.fin && s % CLOTURE < PAS) {
+        const [fx, fz] = [x + nx * troncon.cote * (largeur / 2 + 1.6), z + nz * troncon.cote * (largeur / 2 + 1.6)];
+        const y = hauteurTerrain(fx, fz);
+        if (y > 0.9) clotures.push({ x: fx, y: y - 0.05, z: fz, rot: Math.atan2(-(b[1] - a[1]), b[0] - a[0]), e: 1 });
+      }
+    }
     // Des lanternes à intervalle régulier, en alternant les côtés.
     if (s >= prochaineLanterne) {
       const cote = lanternes.length % 2 ? -1 : 1;
@@ -122,7 +141,7 @@ function construire(c: Chemin, hasard: () => number) {
   g.setAttribute("color", new THREE.Float32BufferAttribute(teintes, 4));
   g.setIndex(indices);
   g.computeVertexNormals();
-  return { g, pierres, lanternes };
+  return { g, pierres, lanternes, clotures, lave: c.matiere === "lave" };
 }
 
 /** Rayon de la place de terre battue d'un carrefour, en m. */
@@ -131,7 +150,8 @@ const CARREFOUR = 7;
 /** Les points d'où partent (ou où arrivent) au moins deux chemins. */
 function carrefours() {
   const compte = new Map<string, number>();
-  for (const c of CHEMINS) for (const p of [c.points[0], c.points[c.points.length - 1]]) compte.set(p.join(","), (compte.get(p.join(",")) ?? 0) + 1);
+  for (const c of CHEMINS)
+    for (const p of new Set([c.points[0].join(","), c.points[c.points.length - 1].join(",")])) compte.set(p, (compte.get(p) ?? 0) + 1);
   return [...compte].filter(([, n]) => n >= 2).map(([k]) => versMonde(k.split(",").map(Number) as [number, number]));
 }
 
@@ -172,17 +192,32 @@ const TERRE = new THREE.MeshStandardMaterial({
   polygonOffsetUnits: -2,
 });
 
+/** La lave brille d'elle-même (pas d'ombre, plus claire que le blanc : le bloom la fait rayonner). */
+const LAVE = new THREE.MeshBasicMaterial({
+  vertexColors: true,
+  transparent: true,
+  depthWrite: false,
+  toneMapped: false,
+  color: new THREE.Color(2.2, 2.2, 2.2),
+  polygonOffset: true,
+  polygonOffsetFactor: -2,
+  polygonOffsetUnits: -2,
+});
+
 /** Chemins de terre (CHEMINS dans monde.ts), bordés de pierres et parfois de lanternes. */
 export function Chemins() {
-  const { geometries, pierres, lanternes } = useMemo(() => {
+  const { geometries, laves, pierres, lanternes, verres, clotures } = useMemo(() => {
     const hasard = graine(61);
     const tout = CHEMINS.map((c) => construire(c, hasard));
     const pierres: THREE.Matrix4[][] = [[], [], []];
     tout.flatMap((t) => t.pierres).forEach((b, i) => pierres[i % 3].push(matrice(b.x, b.y, b.z, b.rot, b.e)));
     return {
-      geometries: [...tout.map((t) => t.g), ...carrefours().map(geometrieCarrefour)],
+      geometries: [...tout.filter((t) => !t.lave).map((t) => t.g), ...carrefours().map(geometrieCarrefour)],
+      laves: tout.filter((t) => t.lave).map((t) => t.g),
       pierres,
       lanternes: tout.flatMap((t) => t.lanternes).map((b) => matrice(b.x, b.y, b.z, b.rot)),
+      verres: tout.flatMap((t) => t.lanternes).map((b) => [b.x, b.y + VERRE_LANTERNE, b.z] as [number, number, number]),
+      clotures: tout.flatMap((t) => t.clotures).map((b) => matrice(b.x, b.y, b.z, b.rot)),
     };
   }, []);
   return (
@@ -190,10 +225,15 @@ export function Chemins() {
       {geometries.map((g, i) => (
         <mesh key={i} geometry={g} material={TERRE} receiveShadow />
       ))}
+      {laves.map((g, i) => (
+        <mesh key={`lave${i}`} geometry={g} material={LAVE} />
+      ))}
       {pierres.map((m, i) => (
         <InstancesModele key={i} modele={`rocher-${i + 1}`} matrices={m} provisoire={null} />
       ))}
       <InstancesModele modele="lanterne" matrices={lanternes} provisoire={null} />
+      <Halos positions={verres} />
+      <InstancesModele modele="cloture" matrices={clotures} provisoire={null} />
     </>
   );
 }
