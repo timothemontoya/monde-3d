@@ -10,6 +10,7 @@ import { barriereOuverte, lesExplorees, remplie, useJeu, type Cible } from "../g
 import { distanceEnMer, indiceCellule, laCarte, MER, regionA, versMonde } from "../world/carte";
 import { distanceBarriere } from "../world/geometrie";
 import { lePlan, terreFerme } from "../world/plan";
+import { TACTILE } from "../ui/Tactile";
 import { hauteurPont, hauteurSol, NIVEAU_MER } from "../world/relief";
 import { prechaufferTerrain } from "../world/Terrain";
 
@@ -122,7 +123,7 @@ export function Joueur() {
     // Prépare le brouillard d'exploration (sauvegardé) à la taille de la carte.
     const c = laCarte();
     lesExplorees(c.largeur * c.hauteur);
-    capture = () => controles.current?.lock();
+    capture = () => !TACTILE && controles.current?.lock();
     // Au départ, on regarde vers le centre du village.
     const cap = lePlan().depart.cap;
     camera.position.copy(depart);
@@ -149,7 +150,7 @@ export function Joueur() {
   }, [camera, depart]);
 
   useEffect(() => {
-    if (panneau) controles.current?.unlock();
+    if (panneau && !TACTILE) controles.current?.unlock();
   }, [panneau]);
 
   // Positions des éléments interactifs, en mètres (celles du plan, là où ils sont dessinés).

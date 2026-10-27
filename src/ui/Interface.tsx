@@ -53,6 +53,11 @@ function EcranTitre() {
           </div>
         )}
       </div>
+      <ul className="commandes commandes-tactiles">
+        <li>Joystick à gauche : se déplacer (à fond : courir)</li>
+        <li>Glisser à droite : regarder</li>
+        <li>Toucher un objet en bas : le prendre en main</li>
+      </ul>
       <ul className="commandes">
         <li><kbd>Souris</kbd> regarder</li>
         <li><kbd>Z Q S D</kbd> se déplacer</li>
@@ -140,10 +145,16 @@ function BarreObjets() {
   return (
     <div className="barre-objets">
       {liste.map((o, i) => (
-        <div key={o.id} className={`case ${enMain === o.id ? "active" : ""}`} title={o.nom}>
+        <button
+          key={o.id}
+          className={`case ${enMain === o.id ? "active" : ""}`}
+          title={o.nom}
+          // (tenir() range l'objet s'il est déjà en main)
+          onClick={() => useJeu.getState().tenir(o.id)}
+        >
           <kbd>{i + 1}</kbd>
           <span>{o.nom}</span>
-        </div>
+        </button>
       ))}
     </div>
   );

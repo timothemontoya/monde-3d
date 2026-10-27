@@ -253,6 +253,10 @@ kbd {
 }
 
 /* ─── Écran tactile : pas d'aide clavier ni de viseur ──────────────────── */
-@media (pointer: coarse) {
-  .commandes, .compteurs .aide { display: none; }
-}
+.commandes-tactiles { display: none; }
+.tactile-actif .commandes { display: none; }
+.tactile-actif .commandes.commandes-tactiles { display: flex; }
+.tactile-actif .compteurs .aide, .tactile-actif .barre-objets kbd { display: none; }
+/* Les cases d'objets sont des boutons qu'on touche. */
+.barre-objets { z-index: 30; }
+.barre-objets .case { font-family: inherit; cursor: pointer; pointer-events: auto; }

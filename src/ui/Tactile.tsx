@@ -10,6 +10,8 @@ import { useJeu } from "../game/store";
 /** Écran tactile (ou ?tactile dans l'adresse, pour essayer sur ordinateur). */
 export const TACTILE =
   new URLSearchParams(window.location.search).has("tactile") || (window.matchMedia("(pointer: coarse)").matches && "ontouchstart" in window);
+// L'interface s'en sert pour cacher l'aide clavier.
+if (TACTILE) document.documentElement.classList.add("tactile-actif");
 
 /** Ce que le doigt a fait glisser pour regarder, en pixels, consommé à chaque image. */
 const regard = { dx: 0, dy: 0 };
@@ -137,8 +139,9 @@ function Touche({ code, tenue = false, children, className = "" }: { code: strin
       onPointerDown={(e) => {
         e.stopPropagation();
         if (tenue) envoyer("keydown", code);
-        else appuyer(code);
       }}
+      // Un appui bref part au relâchement (au clic) : le clic qui suit le toucher ne tombe pas sur ce qui vient de s'ouvrir.
+      onClick={() => !tenue && appuyer(code)}
       onPointerUp={() => tenue && envoyer("keyup", code)}
       onPointerCancel={() => tenue && envoyer("keyup", code)}
       onContextMenu={(e) => e.preventDefault()}
@@ -184,14 +187,14 @@ export function CommandesTactiles() {
         </button>
         {cible && (
           <Touche code="KeyE" className="tactile-principal">
-            Examiner
+            {cible.type === "ramassable" ? "Ramasser" : cible.type === "port" ? "Embarquer" : "Examiner"}
           </Touche>
         )}
         <Touche code="KeyF">Utiliser</Touche>
       </div>
       <div className="tactile-haut">
         <Touche code="Tab">Journal</Touche>
-        <button className="tactile-touche" onPointerDown={() => useJeu.getState().sortir()}>
+        <button className="tactile-touche" onClick={() => useJeu.getState().sortir()}>
           Pause
         </button>
       </div>
