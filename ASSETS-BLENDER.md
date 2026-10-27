@@ -90,7 +90,7 @@ dans la taille indiquée.
 | Fichier | Quoi | Taille | Triangles |
 |---|---|---|---|
 | `palais-givre` | Le Palais givré, tout au nord des terres de glace. Le sol est aplani sur 50 m de rayon autour de lui. | jusqu'à 100 m de large, 60 m de haut | ≤ 15 000 |
-| `portail-sciyolia` | Le portail de pierre éteint, au cœur de la forêt. Ouverture face à −Y ; le jeu met une collision sur deux piliers à 6 m de part et d'autre du centre. | 14 m de large, 14 m de haut | ≤ 5 000 |
+| `portail-sciyolia` | **Pas affiché pour l'instant** : le portail est caché dans le sous-sol de la cabane de la reine. | 14 m de large, 14 m de haut | ≤ 5 000 |
 | `feu-de-camp` | Foyer : pierres en cercle et bûches. La flamme et la lumière sont ajoutées par le jeu. | 2,5 m de diamètre | ≤ 800 |
 
 ### Priorité 4 — les voyages
@@ -137,6 +137,18 @@ n'existe pas**.
 | `statue-hippocampe` | Statue de l'hippocampe, au pied de la tour | 3 × 6 × 3 m | ≤ 4 000 |
 | `epave-corne` | Épave d'un navire de la bataille de la Corne, échouée | 5 × 4 × 16 m | ≤ 4 000 |
 | `etendard-corne` | Étendard planté sur le champ de bataille | 1 × 5 m | ≤ 500 |
+
+### Priorité 8 — les décors de la carte de travail
+
+Ils ont une forme provisoire (une maison) tant que leur fichier n'existe pas.
+
+| Fichier | Quoi | Taille | Triangles |
+|---|---|---|---|
+| `cahute-maitre` | Cahute du maître du village, sur l'île d'Eregone : différente des autres maisons atlantes | 11 × 9 × 10 m | ≤ 3 000 |
+| `cabane-reine` | Cabane de la reine des sorcières (le portail est dans son sous-sol, invisible) | 9 × 8 × 9 m | ≤ 3 000 |
+
+Les tours de guet, canons, épave, ruines et remparts viennent pour l'instant des packs Kenney
+(voir `modeles/README.md`) : un modèle Blender du même nom les remplace.
 
 ### Plus tard (pas encore utilisés par le jeu)
 

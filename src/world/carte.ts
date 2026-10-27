@@ -25,6 +25,8 @@ export type Carte = {
   distTerre: Uint16Array;
   /** Distance à la terre (cellules), pour la mer. */
   distMer: Uint16Array;
+  /** Pour la mer : la région de la terre la plus proche (MER pour la terre elle-même). */
+  regionProche: Uint8Array;
   /** Numéro de l'île (morceau de terre d'un seul tenant) de chaque cellule, -1 en mer. */
   ile: Int32Array;
   /** 1 pour la mer ouverte (reliée au bord), 0 ailleurs (terres et lacs). */
@@ -298,6 +300,22 @@ export async function chargerCarte(): Promise<Carte> {
   // 6. Distances à la côte, de part et d'autre.
   const distTerre = distances(L, H, (i) => region[i] === MER, (i) => region[i] !== MER);
   const distMer = distances(L, H, (i) => region[i] !== MER, (i) => region[i] === MER);
+  // La région de la côte la plus proche, propagée dans la mer (même parcours en largeur, d'ordre en ordre).
+  const regionProche = new Uint8Array(N).fill(MER);
+  const parDistance: number[][] = [];
+  for (let i = 0; i < N; i++) if (region[i] === MER && distMer[i] !== 65535) (parDistance[distMer[i]] ??= []).push(i);
+  for (const liste of parDistance)
+    for (const i of liste ?? []) {
+      const x = i % L;
+      for (const j of [i - 1, i + 1, i - L, i + L]) {
+        if (j < 0 || j >= N || Math.abs((j % L) - x) > 1) continue;
+        const r = region[j] !== MER ? region[j] : regionProche[j];
+        if (r !== MER && (region[j] !== MER || distMer[j] < distMer[i])) {
+          regionProche[i] = r;
+          break;
+        }
+      }
+    }
 
   // 7. Îles : morceaux de terre d'un seul tenant (pour relier les ponts).
   const ile = composantes(L, H, (i) => region[i] !== MER);
@@ -319,6 +337,7 @@ export async function chargerCarte(): Promise<Carte> {
     region,
     distTerre,
     distMer,
+    regionProche,
     ile,
     ocean,
     image: { largeur: toile.width, hauteur: toile.height },

@@ -183,14 +183,24 @@ export function MiniCarte() {
   const toile = useRef<HTMLCanvasElement>(null);
   const TAILLE = 190;
   /** Rayon visible autour du joueur, en m. */
-  const RAYON = 360;
+  const RAYON = 150;
 
   useEffect(() => {
     let id = 0;
+    let dernierX = NaN, dernierZ = NaN, dernierCap = NaN;
     const boucle = () => {
       id = requestAnimationFrame(boucle);
+      // Ne redessine que si le joueur a bougé ou tourné (évite 60 drawImage/s à l'arrêt).
+      if (
+        Math.abs(positionJoueur.x - dernierX) < 0.5 &&
+        Math.abs(positionJoueur.z - dernierZ) < 0.5 &&
+        Math.abs(positionJoueur.cap - dernierCap) < 0.005
+      ) return;
       const ctx = toile.current?.getContext("2d");
       if (!ctx || !composite.width) return;
+      dernierX = positionJoueur.x;
+      dernierZ = positionJoueur.z;
+      dernierCap = positionJoueur.cap;
       const c = laCarte();
       const r = (RAYON / c.pas) * ECHELLE;
       const [px, py] = versImage(positionJoueur.x, positionJoueur.z);

@@ -1,7 +1,8 @@
-import { BARRIERES, DECORS, ENIGMES, FEUX, INDICES, LIEUX, PONTS, PORTS, RAMASSABLES, REGLAGES, VILLAGES } from "../content/monde";
+import { BARRIERES, CHEMINS, DECORS, ENIGMES, FEUX, INDICES, LIEUX, PONTS, PORTS, RAMASSABLES, REGLAGES, VILLAGES } from "../content/monde";
 import type { DecorUnique, Pont, Port, Px, Village } from "../content/types";
 import { centreCellule, indiceCellule, laCarte, MER, regionA, versMonde } from "./carte";
 import { rotationFace } from "./geometrie";
+import { segments, tracesAuSol } from "./zones";
 import { definirPlateformes, definirPonts, distanceSegment, graine, hauteurBrute, hauteurSol, type Plateforme, type PontPlace } from "./relief";
 
 /**
@@ -120,13 +121,27 @@ function placerPont(pont: Pont, plateformes: Plateforme[]): PontPlace | null {
     if (k >= 0) cotes[k].push([i % c.largeur, Math.floor(i / c.largeur)]);
   }
   let paire: [number, number] = [0, 0];
-  let dMin = Infinity;
-  cotes[0].forEach(([ax, az], ia) =>
-    cotes[1].forEach(([bx, bz], ib) => {
-      const d = (ax - bx) ** 2 + (az - bz) ** 2;
-      if (d < dMin) ((dMin = d), (paire = [ia, ib]));
-    }),
-  );
+  if (pont.exact) {
+    // La côte de chaque île la plus proche du point donné.
+    paire = [0, 1].map((k) => {
+      const [px, pz] = pont.entre[k].map((v) => v / (c.image.largeur / c.largeur));
+      let meilleur = 0;
+      let dMin = Infinity;
+      cotes[k].forEach(([x, z], i) => {
+        const d = (x - px) ** 2 + (z - pz) ** 2;
+        if (d < dMin) ((dMin = d), (meilleur = i));
+      });
+      return meilleur;
+    }) as [number, number];
+  } else {
+    let dMin = Infinity;
+    cotes[0].forEach(([ax, az], ia) =>
+      cotes[1].forEach(([bx, bz], ib) => {
+        const d = (ax - bx) ** 2 + (az - bz) ** 2;
+        if (d < dMin) ((dMin = d), (paire = [ia, ib]));
+      }),
+    );
+  }
   const versM = ([cx, cz]: [number, number]) => centreCellule(cz * c.largeur + cx);
   let [ax, az] = versM(cotes[0][paire[0]]);
   let [bx, bz] = versM(cotes[1][paire[1]]);
@@ -207,45 +222,104 @@ function placerQuai(port: Port, plateformes: Plateforme[]): { quai: Quai; ponton
 
 // ─── Villages ───────────────────────────────────────────────────────────────
 
+type Emplacement = { x: number; z: number; /** Point que regarde la façade. */ vers: [number, number] };
+
+/** Emplacements prévus par la disposition du village, du plus important au moins important. */
+function emplacements(v: Village, cx: number, cz: number, hasard: () => number): Emplacement[] {
+  const [l0, , p0] = v.substitut.taille;
+  const d = v.disposition;
+  if (d?.type === "place") {
+    // Anneaux autour de la place, maisons espacées d'une ruelle ; les rues restent libres.
+    const rues = (d.rues ?? []).map((p) => {
+      const [x, z] = versMonde(p);
+      return Math.atan2(z - cz, x - cx);
+    });
+    const place = Math.max(10, v.rayon * 0.3);
+    const ecart = (v.rayon - place) / Math.max(1, d.anneaux);
+    const liste: Emplacement[] = [];
+    for (let k = 0; k < d.anneaux; k++) {
+      const r = place + ecart * (k + 0.5);
+      const n = Math.floor((2 * Math.PI * r) / (l0 + 4));
+      const depart = hasard() * Math.PI * 2;
+      for (let j = 0; j < n; j++) {
+        const a = depart + (j / n) * Math.PI * 2;
+        // Une rue de 6 m, plus la demi-largeur d'une maison de chaque côté.
+        if (rues.some((ar) => Math.abs(Math.atan2(Math.sin(a - ar), Math.cos(a - ar))) * r < 3 + l0 / 2 + 1)) continue;
+        liste.push({ x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r, vers: [cx, cz] });
+      }
+    }
+    return liste;
+  }
+  if (d?.type === "rue") {
+    // Le long du chemin, des deux côtés, à partir du point le plus proche du centre.
+    const chemin = CHEMINS.find((c) => c.id === d.chemin);
+    if (!chemin) throw new Error(`Village ${v.id} : chemin inconnu « ${d.chemin} ».`);
+    const decalage = chemin.largeur / 2 + p0 / 2 + 1.5;
+    const pas = l0 + 3;
+    const points: [number, number, number, number][] = [];
+    for (const [ax, az, bx, bz] of segments(chemin.points)) {
+      const l = Math.hypot(bx - ax, bz - az);
+      for (let t = pas / 2; t < l; t += pas) points.push([ax + ((bx - ax) * t) / l, az + ((bz - az) * t) / l, (bx - ax) / l, (bz - az) / l]);
+    }
+    return points
+      .filter(([x, z]) => Math.hypot(x - cx, z - cz) < v.rayon)
+      .sort((a, b) => Math.hypot(a[0] - cx, a[1] - cz) - Math.hypot(b[0] - cx, b[1] - cz))
+      .flatMap(([x, z, ux, uz]) =>
+        [1, -1].map((cote) => ({ x: x - uz * decalage * cote, z: z + ux * decalage * cote, vers: [x, z] as [number, number] })),
+      );
+  }
+  // Sans disposition : au hasard autour d'une place.
+  const place = 16 + v.rayon * 0.06;
+  return Array.from({ length: v.nombre * 120 }, () => {
+    const a = hasard() * Math.PI * 2;
+    const r = place + (v.rayon - place) * Math.sqrt(hasard());
+    return { x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r, vers: [cx, cz] as [number, number] };
+  });
+}
+
 function placerVillage(v: Village, occupe: Plateforme[], ponts: PontPlace[], hasard: () => number): Maison[] {
   const c = laCarte();
   const [cx, cz] = terreFerme(v.centre, 1);
   const regionCentre = regionA(cx, cz);
   const barrieres = BARRIERES.map((b) => versMonde(b.position));
-  /** Rayon de la place centrale, laissée libre. */
-  const place = 16 + v.rayon * 0.06;
   const maisons: Maison[] = [];
-  for (let essai = 0; essai < v.nombre * 120 && maisons.length < v.nombre; essai++) {
-    const a = hasard() * Math.PI * 2;
-    const d = place + (v.rayon - place) * Math.sqrt(hasard());
-    const x = cx + Math.cos(a) * d;
-    const z = cz + Math.sin(a) * d;
+  // Village en anneaux : un sol commun, à la hauteur moyenne du cœur du village.
+  const plateau =
+    v.disposition?.type === "place" && v.plateau !== false
+      ? { x: cx, z: cz, rayon: v.rayon, fondu: 20, hauteur: hauteurMoyenne(cx, cz, v.rayon * 0.6), commun: true }
+      : null;
+  if (plateau) occupe.push(plateau);
+  for (const { x, z, vers } of emplacements(v, cx, cz, hasard)) {
+    if (maisons.length >= v.nombre) break;
     const [l0, h0, p0] = v.substitut.taille;
-    const k = 0.85 + hasard() * 0.3;
+    // Une même disposition, des maisons pas tout à fait identiques.
+    const k = 0.9 + hasard() * 0.2;
     const l = l0 * k;
     const p = p0 * k;
     const h = h0 * (0.9 + hasard() * 0.25);
-    const rayon = Math.max(l, p) / 2 + 2.5;
+    const rayon = Math.max(l, p) / 2 + 1.5;
 
     const i = indiceCellule(x, z);
     if (i < 0 || c.region[i] !== regionCentre || c.distTerre[i] < 2) continue;
-    if (occupe.some((o) => Math.hypot(o.x - x, o.z - z) < o.rayon + rayon + 2)) continue;
-    if (ponts.some((pt) => distanceSegment(x, z, pt.ax, pt.az, pt.bx, pt.bz).d < rayon + 6)) continue;
-    if (barrieres.some(([bx, bz]) => Math.hypot(bx - x, bz - z) < 40)) continue;
+    if (occupe.some((o) => !o.commun && Math.hypot(o.x - x, o.z - z) < o.rayon + rayon)) continue;
+    if (ponts.some((pt) => distanceSegment(x, z, pt.ax, pt.az, pt.bx, pt.bz).d < rayon + 4)) continue;
+    if (tracesAuSol().some((t) => distanceSegment(x, z, ...t.s).d < t.demi + Math.max(l, p) / 2 + 0.5)) continue;
+    if (barrieres.some(([bx, bz]) => Math.hypot(bx - x, bz - z) < 20)) continue;
     // Terrain assez plat, et au-dessus des plages.
     const centre = hauteurBrute(x, z);
     const bords = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7]].map(([ox, oz]) => hauteurBrute(x + ox * rayon, z + oz * rayon));
-    if (Math.min(centre, ...bords) < 2.5) continue;
-    if (bords.some((b) => Math.abs(b - centre) / rayon > 0.45)) continue;
+    if (Math.min(centre, ...bords) < 1.5) continue;
+    const surPlateau = plateau && Math.hypot(x - cx, z - cz) + rayon < plateau.rayon;
+    if (!surPlateau && bords.some((b) => Math.abs(b - centre) / rayon > 0.6)) continue;
 
-    const hauteur = (centre * 2 + bords.reduce((s, b) => s + b, 0)) / (bords.length + 2);
-    occupe.push({ x, z, rayon, fondu: 9, hauteur });
+    const hauteur = surPlateau ? plateau.hauteur : (centre * 2 + bords.reduce((s, b) => s + b, 0)) / (bords.length + 2);
+    occupe.push({ x, z, rayon, fondu: 6, hauteur });
     maisons.push({
       x,
       z,
       y: hauteur,
-      // La façade (axe +Z du modèle) regarde la place.
-      rot: Math.atan2(cx - x, cz - z),
+      // La façade (axe +Z du modèle) regarde la place ou la rue.
+      rot: Math.atan2(vers[0] - x, vers[1] - z),
       l,
       h,
       p,
@@ -285,8 +359,8 @@ export function planifier(): Plan {
   const enigmes = parId(ENIGMES, (e) => poser(e.position, 3, 8));
   const ramassables = Object.fromEntries(RAMASSABLES.map((r) => [r.objet, poser(r.position, 2.5, 8)]));
   const lieu = (id: string) => LIEUX.find((l) => l.id === id)!.position;
-  const portail = poser(lieu("portail-sciyolia"), 16, 10, 2);
-  const palais = poser(lieu("palais-givre"), 50, 25, 2);
+  const portail = poser(lieu("cabane-reine"), 16, 10, 2);
+  const palais = poser(lieu("palais-givre"), 22, 12, 2);
 
   const ponts = PONTS.map((p) => placerPont(p, plateformes)).filter((p): p is PontPlace => !!p);
   const quais = PORTS.map((p) => ({ id: p.id, ...placerQuai(p, plateformes) }));

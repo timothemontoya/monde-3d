@@ -107,8 +107,8 @@ function geometrieRideau(segments: ReturnType<typeof contour>) {
         const z = p.z + (nz / l) * decalage;
         const sol = hauteurTerrain(x, z);
         const f = Math.min(1, (auBout.get(p.cle) ?? FONDU_BOUTS) / FONDU_BOUTS);
-        // On ne vole qu'à quelques mètres du sol : 120 m de brume suffisent à tout cacher.
-        return { x, z, bas: Math.min(sol, 0) - 6, haut: Math.max(sol + 80, 120), f };
+        // On ne vole qu'à 7 m du sol : 30 m de brume suffisent, sans dresser un mur visible de toute l'île.
+        return { x, z, bas: Math.min(sol, 0) - 6, haut: Math.max(sol + 30, 35), f };
       });
       const [a, b] = coins;
       pos.push(a.x, a.bas, a.z, b.x, b.bas, b.z, b.x, b.haut, b.z, a.x, a.bas, a.z, b.x, b.haut, b.z, a.x, a.haut, a.z);
@@ -206,7 +206,7 @@ function materiauRideau() {
         // Totalement opaque dans le bas, à peine moins vers le haut.
         float densite = mix(1.0, 0.82 + 0.18 * smoothstep(0.3, 0.7, n), smoothstep(0.2, 0.45, vHaut));
         // Le haut du rideau s'effiloche, ses extrémités aussi.
-        float haut = 1.0 - smoothstep(0.45 + 0.25 * n, 1.0, vHaut);
+        float haut = 1.0 - smoothstep(0.25 + 0.25 * n, 0.9, vHaut);
         float bouts = smoothstep(0.0, 1.0, vBout * (0.7 + 0.6 * volutes));
         // De loin, il s'efface là où la brume du monde cache déjà tout (sinon : un bloc pâle sur le ciel).
         float loin = 1.0;

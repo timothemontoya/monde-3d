@@ -1,7 +1,8 @@
 import { createNoise2D } from "simplex-noise";
-import { CRETES, REGIONS, VOLCANS } from "../content/monde";
+import { CRETES, MASSIFS, REGIONS, REGLAGES, VOLCANS } from "../content/monde";
 import type { Px } from "../content/types";
 import { laCarte, MER, versMonde } from "./carte";
+import { dansZone } from "./zones";
 
 /** Générateur pseudo-aléatoire à graine fixe : le monde est identique à chaque visite. */
 export function graine(seed: number) {
@@ -15,6 +16,8 @@ export function graine(seed: number) {
 }
 
 const bruit = createNoise2D(graine(7));
+/** Taille des bosses et des crêtes : elles suivent l'échelle de la carte (calibrées pour 4 m par pixel). */
+const E = REGLAGES.metresParPixel / 4;
 const bruitCretes = createNoise2D(graine(13));
 
 export const smoothstep = (a: number, b: number, x: number) => {
@@ -58,6 +61,8 @@ type Grilles = {
   montagne: Float32Array;
   /** 1 en mer (et dans les lacs), 0 sur terre, flouté : 0,5 sur le trait de côte. */
   mer: Float32Array;
+  /** Altitude ajoutée par les massifs dessinés (MASSIFS), en m. */
+  massif: Float32Array;
 };
 let grilles: Grilles | null = null;
 
@@ -117,8 +122,24 @@ function lesGrilles(): Grilles {
   flouter(altitude, c.largeur, c.hauteur, 2);
   flouter(amplitude, c.largeur, c.hauteur, 3);
   flouter(montagne, c.largeur, c.hauteur, 3);
-  flouter(mer, c.largeur, c.hauteur, 1);
-  grilles = { altitude, amplitude, montagne, mer };
+  // Assez flouté pour arrondir les marches du trait de côte (une cellule de carte = 6 m).
+  flouter(mer, c.largeur, c.hauteur, 2);
+
+  // Massifs : chaque cellule dont le centre (en pixels de carte) est dans la zone.
+  const massif = new Float32Array(N);
+  const cote = c.image.largeur / c.largeur;
+  for (const m of MASSIFS) {
+    const xs = m.zone.map((p) => p[0]);
+    const ys = m.zone.map((p) => p[1]);
+    for (let cy = Math.floor(Math.min(...ys) / cote); cy <= Math.ceil(Math.max(...ys) / cote); cy++)
+      for (let cx = Math.floor(Math.min(...xs) / cote); cx <= Math.ceil(Math.max(...xs) / cote); cx++) {
+        if (cx < 0 || cy < 0 || cx >= c.largeur || cy >= c.hauteur) continue;
+        const i = cy * c.largeur + cx;
+        if (c.region[i] !== MER && dansZone([(cx + 0.5) * cote, (cy + 0.5) * cote], m.zone)) massif[i] = Math.max(massif[i], m.hauteur);
+      }
+  }
+  flouter(massif, c.largeur, c.hauteur, 1);
+  grilles = { altitude, amplitude, montagne, mer, massif };
   return grilles;
 }
 
@@ -198,12 +219,16 @@ function terrainBrut(x: number, z: number): number {
   const montagne = echantillon(g.montagne, x, z);
   let h = echantillon(g.altitude, x, z);
   if (amplitude > 0.01) {
-    const doux = (fbm(x / 420, z / 420, 4) + 1) * 0.5;
-    const dur = cretes(x / 520, z / 520);
+    const doux = (fbm(x / (420 * E), z / (420 * E), 4) + 1) * 0.5;
+    const dur = cretes(x / (520 * E), z / (520 * E));
     h += amplitude * (doux * (1 - montagne) + dur * montagne);
     // Petites ondulations du sol (assez larges pour ne pas facetter la lumière rasante).
-    h += fbm(x / 80, z / 80, 2) * Math.min(2.5, amplitude * 0.08);
+    h += fbm(x / (80 * E), z / (80 * E), 2) * Math.min(1.5, amplitude * 0.08);
   }
+
+  const massif = echantillon(g.massif, x, z);
+  // Des pics déchiquetés plutôt qu'un plateau.
+  if (massif > 0.5) h += massif * (0.55 + 0.45 * cretes(x / (260 * E), z / (260 * E)));
 
   const e = lesElements();
   for (const v of e.volcans) {
@@ -246,6 +271,8 @@ export type Plateforme = {
   hauteur: number;
   /** Ne fait que creuser, sans jamais remblayer (un quai abaisse la côte, mais la mer reste la mer). */
   abaisser?: boolean;
+  /** Sol commun d'un village : il aplanit, mais les maisons peuvent s'y poser. */
+  commun?: boolean;
 };
 
 const CASE = 64;

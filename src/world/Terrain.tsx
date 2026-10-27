@@ -178,15 +178,19 @@ vec3 couleurSol(vec3 pos, vec3 n) {
 
   // Herbe : taches de clarté, endroits plus verts ou plus secs.
   vec3 c = herbe * (0.8 + 0.32 * grandes) * (0.88 + 0.22 * moyennes) * (0.93 + 0.1 * grain + 0.06 * fin);
-  c *= mix(vec3(0.9, 1.05, 0.88), vec3(1.1, 0.98, 0.8), fbmSol(q.xz + 517.0, 1.0 / 32.0));
+  // (pas sur les sols clairs : la neige resterait jaunie)
+  vec3 teinte = mix(vec3(0.9, 1.05, 0.88), vec3(1.1, 0.98, 0.8), fbmSol(q.xz + 517.0, 1.0 / 32.0));
+  c *= mix(vec3(1.0), teinte, 1.0 - smoothstep(0.55, 0.8, dot(herbe, vec3(0.333))));
 
   // Roche sur les pentes, avec des strates sur les parois.
   float pente = 1.0 - n.y;
   float r = rocheTriplanaire(q, n);
   vec3 cRoche = roche * (0.72 + 0.5 * r) * (0.92 + 0.16 * fin);
-  float strates = 0.5 + 0.5 * sin(pos.y * 1.1 + r * 6.0);
-  cRoche *= mix(1.0, 0.82 + 0.3 * strates, smoothstep(0.3, 0.7, pente));
-  float tRoche = smoothstep(0.24, 0.44, pente + (moyennes - 0.5) * 0.2);
+  // Strates larges, discrètes sur la roche claire (sinon la glace semble ondulée).
+  float strates = 0.5 + 0.5 * sin(pos.y * 0.35 + r * 6.0);
+  float clair = smoothstep(0.55, 0.75, dot(roche, vec3(0.333)));
+  cRoche *= mix(1.0, mix(0.82 + 0.3 * strates, 0.94 + 0.12 * strates, clair), smoothstep(0.3, 0.7, pente));
+  float tRoche = smoothstep(0.12, 0.38, pente + (moyennes - 0.5) * 0.2);
   c = mix(c, cRoche, tRoche);
 
   // Plages, juste au-dessus de l'eau.
@@ -195,7 +199,7 @@ vec3 couleurSol(vec3 pos, vec3 n) {
   // Fond marin, de plus en plus sombre.
   c = mix(c, uFond, 1.0 - smoothstep(-6.0, -0.5, pos.y));
   // Neige sur les hauteurs, pas sur les parois.
-  float tNeige = smoothstep(185.0, 235.0, pos.y + (grandes - 0.5) * 40.0) * (1.0 - smoothstep(0.35, 0.6, pente)) * texHerbe.a;
+  float tNeige = smoothstep(95.0, 125.0, pos.y + (grandes - 0.5) * 20.0) * (1.0 - smoothstep(0.35, 0.6, pente)) * texHerbe.a;
   return mix(c, uNeige, tNeige);
 }
 `;
@@ -322,9 +326,16 @@ export function Terrain({ pasFixe, depart }: { pasFixe?: number; depart?: [numbe
 export function Eau() {
   const { demiLargeur, demiHauteur } = bornes();
   return (
-    <mesh rotation-x={-Math.PI / 2} position-y={NIVEAU_MER}>
-      <planeGeometry args={[demiLargeur * 2 + 4000, demiHauteur * 2 + 4000]} />
-      <meshStandardMaterial color="#2f6170" transparent opacity={0.86} roughness={0.15} metalness={0.2} />
-    </mesh>
+    <>
+      <mesh rotation-x={-Math.PI / 2} position-y={NIVEAU_MER}>
+        <planeGeometry args={[demiLargeur * 2 + 4000, demiHauteur * 2 + 4000]} />
+        <meshStandardMaterial color="#2f6170" transparent opacity={0.86} roughness={0.15} metalness={0.2} />
+      </mesh>
+      {/* Fond marin au-delà de la carte : sous l'eau translucide, le bord du relief ne se voit plus. */}
+      <mesh rotation-x={-Math.PI / 2} position-y={NIVEAU_MER - 16}>
+        <planeGeometry args={[demiLargeur * 2 + 4000, demiHauteur * 2 + 4000]} />
+        <meshStandardMaterial color={FOND_MARIN} roughness={1} />
+      </mesh>
+    </>
   );
 }

@@ -1,0 +1,69 @@
+:root {
+  --or: #d9b56a;
+  --or-pale: #f1dcaa;
+  --texte: #e9e0cc;
+  --texte-2: #a99f8a;
+  --fond: #15120d;
+  --panneau: #1f1a13;
+  --bord: rgba(217, 181, 106, 0.25);
+  --titre: "Alegreya SC", Georgia, serif;
+  --corps: "Alegreya", Georgia, serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; }
+body { background: var(--fond); color: var(--texte); font-family: var(--corps); }
+
+.editeur { display: flex; height: 100%; }
+
+aside {
+  width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.2rem;
+  background: var(--panneau); border-right: 1px solid var(--bord); padding: 1rem; overflow-y: auto;
+}
+h1 { font-family: var(--titre); font-weight: 400; color: var(--or-pale); font-size: 1.4rem; margin: 0 0 0.5rem; letter-spacing: 0.05em; }
+h2 { font-family: var(--titre); font-weight: 400; color: var(--texte-2); font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin: 0.8rem 0 0.4rem; }
+
+button, input, textarea, select { font: inherit; color: inherit; }
+button {
+  background: rgba(10, 9, 7, 0.5); border: 1px solid var(--bord); border-radius: 4px;
+  padding: 0.3rem 0.6rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
+}
+button:hover { border-color: var(--or); }
+button.actif { border-color: var(--or); background: rgba(217, 181, 106, 0.18); color: var(--or-pale); }
+button.danger:hover { border-color: #e05a5a; color: #f0a0a0; }
+
+.boutons { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.categories { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; }
+.categories button { font-size: 0.85rem; justify-content: flex-start; }
+.aide { font-size: 0.8rem; color: var(--texte-2); margin: 0.4rem 0 0; }
+
+.pastille { width: 0.7rem; height: 0.7rem; border-radius: 50%; flex-shrink: 0; display: inline-block; border: 1px solid rgba(0, 0, 0, 0.4); }
+.couleur { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.9rem; color: var(--texte-2); }
+.couleur input { width: 2.5rem; height: 1.6rem; padding: 0; border: none; background: none; }
+
+.fiche { display: flex; flex-direction: column; gap: 0.4rem; border-top: 1px solid var(--bord); padding-top: 0.2rem; }
+.fiche input, .fiche textarea, .fiche select {
+  width: 100%; background: rgba(10, 9, 7, 0.5); border: 1px solid var(--bord); border-radius: 4px; padding: 0.35rem 0.5rem;
+}
+.fiche textarea { resize: vertical; }
+.fiche input:focus, .fiche textarea:focus { outline: none; border-color: var(--or); }
+.reponse { margin: 0; padding: 0.5rem; border-left: 2px solid var(--or); background: rgba(217, 181, 106, 0.08); font-style: italic; font-size: 0.9rem; }
+
+.liste { border-top: 1px solid var(--bord); flex: 1; }
+.liste ul { list-style: none; margin: 0; padding: 0; }
+.liste li { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.4rem; border-radius: 4px; cursor: pointer; font-size: 0.95rem; }
+.liste li:hover { background: rgba(217, 181, 106, 0.08); }
+.liste li.choisie { background: rgba(217, 181, 106, 0.18); }
+.faites li { opacity: 0.6; }
+.a-reponse { margin-left: auto; font-size: 0.75rem; color: var(--or); }
+
+footer { font-size: 0.8rem; color: var(--texte-2); border-top: 1px solid var(--bord); padding-top: 0.6rem; }
+footer label { display: flex; gap: 0.4rem; align-items: center; }
+.etat { margin-top: 0.3rem; min-height: 1.2em; }
+
+svg { flex: 1; height: 100%; display: block; background: #0c0a07; touch-action: none; user-select: none; }
+svg.outil-main { cursor: grab; }
+svg.outil-ping, svg.outil-trait, svg.outil-zone { cursor: crosshair; }
+.etiquette { fill: #fff8e6; paint-order: stroke; stroke: #1a140c; font-family: var(--titre); }
+.existant { fill: rgba(255, 255, 255, 0.75); stroke: #1a140c; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.existant circle { fill: rgba(255, 255, 255, 0.06); stroke: rgba(255, 255, 255, 0.4); stroke-dasharray: 4 4; }

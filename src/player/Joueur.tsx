@@ -41,7 +41,7 @@ const DEMI_HAUTEUR = 0.6;
 /** Distance à laquelle on peut activer un objet. */
 const PORTEE = 4;
 /** Rayon d'exploration (brouillard de la carte), en m. */
-const VUE = 160;
+const VUE = 70;
 const GRAVITE = 28;
 /** Vitesse de saut, en m/s (environ 1,1 m de haut). */
 const SAUT = 8;
@@ -57,12 +57,26 @@ const LAC = 256;
 /** Sol sous les pieds, en tenant compte de l'eau (on marche « dans » l'eau peu profonde). */
 const sol = (x: number, z: number) => Math.max(hauteurSol(x, z), NIVEAU_MER - 0.6);
 
-/** Région à cet endroit, « MER » pour la mer ouverte, « LAC » pour un lac. */
+/**
+ * Eau côtière d'une région que la brume ferme du côté de la mer (zone COTE + région) : on ne s'y
+ * glisse pas en nageant le long de la côte depuis une région voisine.
+ */
+const COTE = 512;
+/** Largeur de cette eau côtière, en cellules de carte (au-delà, la mer est trop profonde de toute façon). */
+const LARGEUR_COTE = 4;
+const FERMEES_COTE = new Map(
+  FRONTIERES_MAGIQUES.filter((f) => f.regions.includes("mer") && !f.quand).map((f) => [IDS_REGIONS.indexOf(f.regions.find((r) => r !== "mer")!), f.message]),
+);
+
+/** Région à cet endroit, « MER » pour la mer ouverte, « LAC » pour un lac, COTE + région pour l'eau côtière fermée. */
 function zone(x: number, z: number) {
   const r = regionA(x, z);
   if (r !== MER) return r;
   const i = indiceCellule(x, z);
-  return i < 0 || laCarte().ocean[i] ? MER : LAC;
+  if (i < 0) return MER;
+  const c = laCarte();
+  if (FERMEES_COTE.has(c.regionProche[i]) && c.distMer[i] <= LARGEUR_COTE) return COTE + c.regionProche[i];
+  return c.ocean[i] ? MER : LAC;
 }
 
 export function Joueur() {
@@ -173,6 +187,9 @@ export function Joueur() {
     const za = zone(px, pz);
     const zb = zone(nx, nz);
     if (za !== zb) {
+      // L'eau côtière fermée : on n'y entre pas, et on n'en gagne pas la terre de sa région.
+      const cote = zb >= COTE ? zb - COTE : za >= COTE && zb === za - COTE ? zb : -1;
+      if (cote >= 0) return FERMEES_COTE.get(cote)!;
       for (const f of reperes.frontieres) {
         const [p, q] = f.zones;
         // Sans condition d'ouverture, la frontière reste fermée pour toujours.
@@ -185,7 +202,9 @@ export function Joueur() {
     const pente = penteDevant(px, pz, (nx - px) / d, (nz - pz) / d);
     const pieds = y - REGLAGES.hauteurYeux;
     const devant = sol(px + ((nx - px) / d) * 1.5, pz + ((nz - pz) / d) * 1.5);
-    if (pente > REGLAGES.penteMax && devant > pieds + (vol.current ? 0.6 : 0.3)) return "La paroi est trop raide.";
+    // En eau (pied d'une falaise immergée) : on laisse nager pour rejoindre la berge.
+    const enEauIci = hauteurSol(px, pz) < NIVEAU_MER && pieds < NIVEAU_MER + 0.5;
+    if (pente > REGLAGES.penteMax && devant > pieds + (vol.current ? 0.6 : 0.3) && !enEauIci) return "La paroi est trop raide.";
     return null;
   }
 
@@ -275,7 +294,14 @@ export function Joueur() {
       y = THREE.MathUtils.clamp(y, yMin, yMax);
       auSol.current = y <= yMin + 0.01;
     } else {
-      vy.current -= GRAVITE * dt;
+      const enEau = hauteurSol(pos.x + mouvement.x, pos.z + mouvement.z) < NIVEAU_MER && y < NIVEAU_MER + 1.0;
+      if (enEau) {
+        // Flottabilité : amortit la chute et pousse doucement vers la surface.
+        vy.current = Math.max(vy.current * 0.85, -2);
+        vy.current += 6 * dt;
+      } else {
+        vy.current -= GRAVITE * dt;
+      }
       y += vy.current * dt;
       const pas = Math.hypot(mouvement.x, mouvement.z);
       if (y <= yMin) {
@@ -287,7 +313,9 @@ export function Joueur() {
         y = yMin;
         vy.current = 0;
       } else {
-        auSol.current = false;
+        // En eau peu profonde, on peut sauter pour remonter sur la berge.
+        if (enEau && y < NIVEAU_MER + 0.3) auSol.current = true;
+        else auSol.current = false;
       }
       y = Math.min(y, yMax);
     }
@@ -311,7 +339,8 @@ export function Joueur() {
     // Caméra : hauteur lissée (les petites marches et les atterrissages ne secouent pas la vue).
     camY.current += (suivant.y - camY.current) * (1 - Math.exp(-dt * 18));
     camY.current = Math.max(camY.current, sol(suivant.x, suivant.z) + 1.2);
-    camera.position.set(suivant.x, camY.current, suivant.z);
+    // Léger recul de la caméra pour éviter le clipping dans les parois (avant déjà calculé ligne ~220).
+    camera.position.set(suivant.x - avant.x * 0.2, camY.current, suivant.z - avant.z * 0.2);
     positionJoueur.x = suivant.x;
     positionJoueur.z = suivant.z;
     positionJoueur.cap = Math.atan2(avant.z, avant.x);

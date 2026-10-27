@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { REGIONS } from "../content/monde";
 import { useJeu } from "../game/store";
@@ -16,7 +16,7 @@ const HAUT_SOLEIL = SOLEIL.clone().cross(DROITE_SOLEIL).normalize();
 const TEXEL = (OMBRE * 2) / RESOLUTION_OMBRE;
 
 /** Ambiance en mer et hors des régions. */
-const AMBIANCE_HORS_ZONE = { brume: "#c9b796", densite: 0.0016, lumiere: "#ffd49a" };
+const AMBIANCE_HORS_ZONE = { brume: "#c9b796", densite: 0.0016, lumiere: "#ffd49a", ciel: "#ffe2b8", sol: "#5a5038" };
 
 /** Couleur du haut du ciel. */
 const ZENITH = new THREE.Color("#5b7393");
@@ -64,20 +64,31 @@ function materiauCiel() {
 export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
   const scene = useThree((s) => s.scene);
   const soleil = useRef<THREE.DirectionalLight>(null);
+  const ambiance = useRef<THREE.HemisphereLight>(null);
   const ciel = useRef<THREE.Mesh>(null);
   const zone = useJeu((s) => s.regionActuelle);
   const materiau = useMemo(() => materiauCiel(), []);
   const cale = useMemo(() => new THREE.Vector3(), []);
 
-  const brume = useMemo(() => {
-    const f = new THREE.FogExp2(AMBIANCE_HORS_ZONE.brume, AMBIANCE_HORS_ZONE.densite);
-    scene.fog = sansBrume ? null : f;
-    return f;
-  }, [scene, sansBrume]);
+  const brume = useMemo(() => new THREE.FogExp2(AMBIANCE_HORS_ZONE.brume, AMBIANCE_HORS_ZONE.densite), []);
+  // La scène doit garder CE brouillard-là (celui que l'on fait varier) : pas d'effet de bord dans useMemo,
+  // que React peut appeler deux fois.
+  useEffect(() => {
+    scene.fog = sansBrume ? null : brume;
+    return () => {
+      scene.fog = null;
+    };
+  }, [scene, brume, sansBrume]);
 
   const cible = useMemo(() => {
     const a = REGIONS.find((r) => r.id === zone)?.ambiance ?? AMBIANCE_HORS_ZONE;
-    return { brume: new THREE.Color(a.brume), densite: a.densite, lumiere: new THREE.Color(a.lumiere) };
+    return {
+      brume: new THREE.Color(a.brume),
+      densite: a.densite,
+      lumiere: new THREE.Color(a.lumiere),
+      ciel: new THREE.Color(a.ciel ?? AMBIANCE_HORS_ZONE.ciel),
+      sol: new THREE.Color(a.sol ?? AMBIANCE_HORS_ZONE.sol),
+    };
   }, [zone]);
 
   useFrame((state, delta) => {
@@ -85,6 +96,8 @@ export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
     brume.color.lerp(cible.brume, k);
     brume.density += (cible.densite - brume.density) * k;
     materiau.uniforms.uHorizon.value.copy(brume.color);
+    ambiance.current?.color.lerp(cible.ciel, k);
+    ambiance.current?.groundColor.lerp(cible.sol, k);
     const cam = state.camera.position;
     ciel.current?.position.copy(cam);
     if (soleil.current) {
@@ -105,7 +118,7 @@ export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
       <mesh ref={ciel} material={materiau} renderOrder={-1000} frustumCulled={false}>
         <sphereGeometry args={[4000, 32, 16]} />
       </mesh>
-      <hemisphereLight args={["#ffe2b8", "#5a5038", 1.15]} />
+      <hemisphereLight ref={ambiance} args={[AMBIANCE_HORS_ZONE.ciel, AMBIANCE_HORS_ZONE.sol, 1.15]} />
       <directionalLight
         ref={soleil}
         intensity={3.2}

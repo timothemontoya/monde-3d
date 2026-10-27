@@ -13,6 +13,9 @@ export type Ambiance = {
   densite: number;
   /** Couleur de la lumière du soleil. */
   lumiere: string;
+  /** Lumière d'ambiance venue du ciel et renvoyée par le sol (par défaut : dorée et terreuse). */
+  ciel?: string;
+  sol?: string;
 };
 
 /** Ce qu'il faut avoir fait pour qu'une chose s'ouvre ou se révèle. Tout doit être rempli. */
@@ -57,7 +60,7 @@ export type Region = {
   vegetation: Vegetation;
   /** Couleurs du sol : herbe/terre principale et roche. */
   sol: [string, string];
-  /** Neige sur les sommets (au-dessus de 190 m environ). Oui par défaut. */
+  /** Neige sur les sommets (au-dessus de 110 m environ). Oui par défaut. */
   neige?: boolean;
   lore: Lore[];
 };
@@ -136,7 +139,47 @@ export type Port = {
  * Pont suspendu entre deux terres. On donne un point sur chaque rive (n'importe où sur l'île) :
  * le moteur relie les deux terres à l'endroit où elles sont le plus proches.
  */
-export type Pont = { entre: [Px, Px]; largeur: number };
+export type Pont = {
+  entre: [Px, Px];
+  largeur: number;
+  /** Le pont part exactement de la côte la plus proche de chaque point (au lieu du plus court passage). */
+  exact?: boolean;
+};
+
+/** Chemin de terre tracé sur le sol (les arbres s'en écartent). */
+export type Chemin = {
+  id: string;
+  nom?: string;
+  points: Px[];
+  /** Largeur en m (elle varie un peu le long du chemin). */
+  largeur: number;
+  /** Une lanterne tous les tant de mètres, en alternant les côtés. */
+  lanternes?: number;
+};
+
+/** Zone plus boisée que le reste de sa région. */
+export type Bois = {
+  zone: Px[];
+  vegetation: Exclude<Vegetation, "aucune">;
+  /** Arbres par hectare (une forêt dense : 40 à 70). */
+  densite: number;
+};
+
+/** Montagnes dessinées : le relief monte à l'intérieur de la zone. */
+export type Massif = { zone: Px[]; /** Altitude ajoutée, en m. */ hauteur: number };
+
+/**
+ * Remparts : un mur fermé le long de la zone, avec des tours aux angles.
+ * Chaque porte ouvre un passage dans le mur, là où il passe au plus près du point donné.
+ */
+export type Rempart = {
+  id: string;
+  zone: Px[];
+  style: "pierre" | "glace";
+  portes: Px[];
+  /** Modèle des tours (par défaut : la tour du style). */
+  tour?: "tour-guet";
+};
 
 /** Village ou cité : des maisons placées autour d'un centre, sur un sol aplani. */
 export type Village = {
@@ -149,6 +192,14 @@ export type Village = {
   modeles: string[];
   /** Forme provisoire tant que les modèles n'existent pas : couleurs et taille [largeur, hauteur, profondeur] en m. */
   substitut: { murs: string; toit: string; taille: [number, number, number] };
+  /**
+   * Comment les maisons s'organisent (sans : au hasard autour du centre).
+   * place : en anneaux autour d'une place, façades vers le centre ; `rues` laisse un passage vers chaque point.
+   * rue : de part et d'autre d'un chemin (id dans CHEMINS), façades vers lui, jusqu'à `rayon` du centre.
+   */
+  disposition?: { type: "place"; anneaux: number; rues?: Px[] } | { type: "rue"; chemin: string };
+  /** Un village en anneaux est bâti sur un sol commun aplani ; `false` : les maisons suivent le relief (ruines). */
+  plateau?: boolean;
 };
 
 /**
@@ -165,6 +216,8 @@ export type DecorUnique = {
   echelle?: number;
   /** Le joueur s'y cogne : taille de la boîte de collision [largeur, hauteur, profondeur] en m. */
   solide?: [number, number, number];
+  /** Maison provisoire (murs, toit, taille [largeur, hauteur, profondeur] en m) tant que le modèle manque. */
+  substitut?: { murs: string; toit: string; taille: [number, number, number] };
 };
 
 /** Feu de camp : point de repos et de voyage rapide, une fois découvert. */

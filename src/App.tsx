@@ -7,6 +7,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import { ObjetEnMain } from "./player/FormeObjet";
 import { Joueur, TOUCHES } from "./player/Joueur";
+import { LEGER } from "./qualite";
 import { preparerCarte } from "./ui/Carte";
 import { Interface } from "./ui/Interface";
 import { Atmosphere } from "./world/Atmosphere";
@@ -21,8 +22,7 @@ import { lePlan, planifier } from "./world/plan";
 import { Eau, Terrain } from "./world/Terrain";
 
 const PARAMS = new URLSearchParams(window.location.search);
-/** Mode léger (?leger dans l'adresse) : sans ombres ni effets, pour les machines modestes. */
-export const LEGER = PARAMS.has("leger");
+
 /**
  * Vues aériennes (?vue=ciel : de dessus, nord en haut · ?vue=survol : en perspective),
  * pour voir toute la carte d'un coup. Pas de joueur ni d'interface.
@@ -66,6 +66,8 @@ export default function App() {
           w.lePlan = lePlan;
           // jeu : l'état du jeu (zustand), ex. jeu.setState({ enJeu: true }).
           w.jeu = useJeu;
+          // versMonde([px, py]) : pixels de la carte → mètres (utilisé par scripts/photos.mjs).
+          w.versMonde = versMonde;
           // hauteurEn(px, py) : altitude du sol à cet endroit de la carte.
           w.hauteurEn = (px: number, py: number) => hauteurSol(...versMonde([px, py]));
           // regionEn(px, py) : nom de la région à cet endroit de la carte.
@@ -91,7 +93,7 @@ function Monde() {
       <Canvas
         shadows={!LEGER}
         dpr={LEGER ? 1 : [1, 1.5]}
-        camera={{ fov: 70, near: 0.1, far: 6000 }}
+        camera={{ fov: 70, near: 0.15, far: 6000 }}
         gl={{ antialias: !LEGER, preserveDrawingBuffer: LEGER, toneMapping: LEGER ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping }}
         onCreated={({ scene }) => {
           if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).scene = scene;

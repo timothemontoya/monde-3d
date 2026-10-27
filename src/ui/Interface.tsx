@@ -344,12 +344,28 @@ function useRaccourcis() {
   }, []);
 }
 
+function usePointerLock() {
+  const [verrouille, setVerrouille] = useState(!!document.pointerLockElement);
+  useEffect(() => {
+    const maj = () => setVerrouille(!!document.pointerLockElement);
+    document.addEventListener("pointerlockchange", maj);
+    return () => document.removeEventListener("pointerlockchange", maj);
+  }, []);
+  return verrouille;
+}
+
 export function Interface() {
   useRaccourcis();
   const { enJeu, panneau, fondu } = useJeu();
+  const verrouille = usePointerLock();
   return (
     <div className="interface">
       {enJeu && !panneau && <ATH />}
+      {enJeu && !panneau && !fondu && !verrouille && (
+        <button className="reprendre-souris bouton bouton-principal" onClick={capturerSouris}>
+          Cliquer pour reprendre
+        </button>
+      )}
       {!enJeu && !panneau && <EcranTitre />}
       <Banniere />
       {enJeu && <PanneauLore />}

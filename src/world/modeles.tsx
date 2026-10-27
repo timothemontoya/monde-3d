@@ -71,12 +71,12 @@ export function Modele({ modele, provisoire = null, ...props }: { modele: string
 type Morceau = { geometrie: THREE.BufferGeometry; materiau: THREE.Material | THREE.Material[]; local: THREE.Matrix4 };
 
 /** Un morceau (mesh) du modèle, répété à chaque position. */
-function InstancesMorceau({ morceau, matrices }: { morceau: Morceau; matrices: THREE.Matrix4[] }) {
+function InstancesMorceau({ morceau, matrices, ombre }: { morceau: Morceau; matrices: THREE.Matrix4[]; ombre: boolean }) {
   const finales = useMemo(() => matrices.map((m) => m.clone().multiply(morceau.local)), [matrices, morceau]);
-  return <Instances geometrie={morceau.geometrie} materiau={morceau.materiau} matrices={finales} />;
+  return <Instances geometrie={morceau.geometrie} materiau={morceau.materiau} matrices={finales} ombre={ombre} />;
 }
 
-function InstancesChargees({ url, matrices }: { url: string; matrices: THREE.Matrix4[] }) {
+function InstancesChargees({ url, matrices, ombre }: { url: string; matrices: THREE.Matrix4[]; ombre: boolean }) {
   const { scene } = useGLTF(url);
   const morceaux = useMemo(() => {
     scene.updateMatrixWorld(true);
@@ -90,20 +90,31 @@ function InstancesChargees({ url, matrices }: { url: string; matrices: THREE.Mat
   return (
     <>
       {morceaux.map((m, i) => (
-        <InstancesMorceau key={i} morceau={m} matrices={matrices} />
+        <InstancesMorceau key={i} morceau={m} matrices={matrices} ombre={ombre} />
       ))}
     </>
   );
 }
 
 /** Le même modèle à plusieurs endroits (maisons, arbres, rochers…), ou `provisoire` sans fichier. */
-export function InstancesModele({ modele, matrices, provisoire }: { modele: string; matrices: THREE.Matrix4[]; provisoire: ReactNode }) {
+/** `ombre` : faux pour les petites plantes, trop nombreuses pour être dessinées une seconde fois dans les ombres. */
+export function InstancesModele({
+  modele,
+  matrices,
+  provisoire,
+  ombre = true,
+}: {
+  modele: string;
+  matrices: THREE.Matrix4[];
+  provisoire: ReactNode;
+  ombre?: boolean;
+}) {
   const url = URLS[modele];
   if (!matrices.length) return null;
   if (!url) return <>{provisoire}</>;
   return (
     <Suspense fallback={provisoire}>
-      <InstancesChargees url={url} matrices={matrices} />
+      <InstancesChargees url={url} matrices={matrices} ombre={ombre} />
     </Suspense>
   );
 }

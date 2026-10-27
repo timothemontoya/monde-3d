@@ -2,13 +2,18 @@ import { useFrame } from "@react-three/fiber";
 import { CuboidCollider, CylinderCollider, RigidBody } from "@react-three/rapier";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { BARRIERES, REGIONS, VILLAGES, VOLCANS } from "../content/monde";
-import type { Vegetation as TypeVegetation } from "../content/types";
+import { BARRIERES, BOIS as BOIS_DESSINES, REGIONS, VILLAGES, VOLCANS } from "../content/monde";
+import type { DecorUnique, Vegetation as TypeVegetation } from "../content/types";
+import { LEGER } from "../qualite";
 import { BrumeSorcieres } from "./BrumeSorcieres";
-import { centreCellule, laCarte, MER, regionA, versMonde } from "./carte";
+import { centreCellule, laCarte, MER, regionA, versCarte, versMonde } from "./carte";
+import { Chemins } from "./Chemins";
 import { Instances, InstancesModele, matrice, Modele, modeleExiste } from "./modeles";
 import { lePlan, LONGUEUR_QUAI, type Maison } from "./plan";
-import { distanceSegment, graine, hauteurPont, hauteurTerrain, pente, surPlateforme } from "./relief";
+import { createNoise2D } from "simplex-noise";
+import { distanceSegment, graine, hauteurPont, hauteurTerrain, pente, smoothstep, surPlateforme } from "./relief";
+import { Remparts } from "./Remparts";
+import { dansZone, tracesAuSol } from "./zones";
 
 // Décor : les modèles Blender du dossier modeles/ (voir ASSETS-BLENDER.md),
 // ou des formes PROVISOIRES tant qu'ils n'existent pas.
@@ -50,13 +55,20 @@ function lesFormes() {
     "arbre-mort": [{ geometrie: troncNu, materiau: mat("#2e2622") }],
     rocher: [{ geometrie: roche, materiau: mat("#8a857c", true) }],
     buisson: [{ geometrie: buisson, materiau: mat("#5d6b3a", true) }],
+    // Petites plantes : rien tant que leur modèle manque.
+    herbe: [],
+    fleur: [],
+    souche: [],
   };
   return formes;
 }
 
 /**
- * Une plantation : densité (par hectare), modèles (variantes tirées au hasard), forme provisoire,
+ * Une plantation : densité moyenne (par hectare), modèles (variantes tirées au hasard), forme provisoire,
  * où elle pousse, et l'obstacle qu'elle fait (rayon et hauteur à l'échelle 1 ; sans : on la traverse).
+ * `bosquets` : « dans » groupe la plantation en bosquets séparés de clairières, « hors » la met dans
+ * les clairières (fleurs). `marge` : distance gardée au bord des chemins et des ponts (m).
+ * `villages` : pousse aussi entre les maisons.
  */
 type Semis = {
   densite: number;
@@ -66,36 +78,64 @@ type Semis = {
   hauteurMin: number;
   echelle: [number, number];
   obstacle?: { rayon: number; hauteur: number };
+  bosquets?: "dans" | "hors";
+  marge: number;
+  villages?: boolean;
 };
 
 const variantes = (nom: string, n: number) => Array.from({ length: n }, (_, i) => `${nom}-${i + 1}`);
-const arbres = (nom: string, n: number, densite: number): Semis => ({
+const arbres = (nom: string, n: number, densite: number, bosquets?: "dans"): Semis => ({
   densite,
   variantes: variantes(nom, n),
   forme: nom,
   penteMax: 0.6,
   hauteurMin: 2.8,
-  echelle: [0.75, 1.35],
+  echelle: [0.55, 1.6],
   obstacle: { rayon: 0.45, hauteur: 6 },
+  bosquets,
+  marge: 5,
 });
-const BUISSONS: Semis = { densite: 2.5, variantes: variantes("buisson", 2), forme: "buisson", penteMax: 0.8, hauteurMin: 2.5, echelle: [0.6, 1.3] };
+const BUISSONS: Semis = { densite: 6, variantes: variantes("buisson", 2), forme: "buisson", penteMax: 0.8, hauteurMin: 2.5, echelle: [0.9, 1.8], bosquets: "dans", marge: 1.5 };
 const ROCHERS_EPARS: Semis = {
-  densite: 0.3,
+  densite: 0.8,
   variantes: variantes("rocher", 3),
   forme: "rocher",
   penteMax: 1.3,
   hauteurMin: 0.4,
   echelle: [0.5, 1.8],
   obstacle: { rayon: 1.2, hauteur: 2 },
+  marge: 2,
 };
+// Le sol à hauteur de joueur : herbes hautes partout, fleurs dans les clairières, bois mort sous les arbres.
+const HERBES: Semis = { densite: 250, variantes: variantes("herbe", 2), forme: "herbe", penteMax: 1, hauteurMin: 1, echelle: [1.2, 2.2], marge: 0.5, villages: true };
+const FLEURS: Semis = {
+  densite: 40,
+  variantes: ["fleur-jaune", "fleur-rouge", "fleur-violette"],
+  forme: "fleur",
+  penteMax: 0.8,
+  hauteurMin: 1.5,
+  echelle: [1.2, 2],
+  bosquets: "hors",
+  marge: 0.5,
+  villages: true,
+};
+const BOIS_MORT: Semis = { densite: 1, variantes: ["souche", "tronc"], forme: "souche", penteMax: 0.7, hauteurMin: 2, echelle: [0.8, 1.3], bosquets: "dans", marge: 2 };
+const CHAMPIGNONS: Semis = { densite: 10, variantes: variantes("champignon", 2), forme: "fleur", penteMax: 0.9, hauteurMin: 1.5, echelle: [1, 2.2], marge: 0.5 };
+
+/** Formes des petites plantes : sans ombre portée, et absentes du mode léger. */
+const PETITES = new Set(["herbe", "fleur"]);
 
 const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
-  "foret-doree": [arbres("arbre-dore", 3, 1.6), BUISSONS],
-  "foret-sombre": [arbres("arbre-sorciere", 3, 7), { ...BUISSONS, densite: 5 }],
-  "pins-enneiges": [arbres("pin-enneige", 2, 2.2)],
-  "arbres-morts": [arbres("arbre-mort", 2, 1.2)],
-  rochers: [{ ...ROCHERS_EPARS, densite: 1.4, echelle: [0.8, 2.6] }],
+  "foret-doree": [arbres("arbre-dore", 6, 5, "dans"), BUISSONS, HERBES, FLEURS, BOIS_MORT],
+  "foret-sombre": [arbres("arbre-sorciere", 3, 25), { ...BUISSONS, densite: 8, bosquets: undefined }, CHAMPIGNONS, { ...HERBES, densite: 30 }, BOIS_MORT],
+  "pins-enneiges": [arbres("pin-enneige", 5, 14, "dans"), { ...BOIS_MORT, densite: 0.5 }, { ...ROCHERS_EPARS, densite: 2 }],
+  "arbres-morts": [{ ...arbres("arbre-mort", 2, 4, "dans"), echelle: [0.7, 1.2] }, { ...BOIS_MORT, densite: 2 }, { ...ROCHERS_EPARS, densite: 1.5 }],
+  rochers: [{ ...ROCHERS_EPARS, densite: 3, echelle: [0.8, 2.6] }, { ...HERBES, densite: 120 }],
 };
+
+/** Bruit des bosquets (0 à 1) : au-dessus de 0,5 un bosquet, en dessous une clairière. Taches d'environ 140 m. */
+const bruitBosquets = createNoise2D(graine(41));
+const bosquet = (x: number, z: number) => smoothstep(0.35, 0.65, (bruitBosquets(x / 140, z / 140) + 1) / 2);
 
 function Vegetation() {
   const parVariante = useMemo(() => {
@@ -103,13 +143,14 @@ function Vegetation() {
     const plan = lePlan();
     const hasard = graine(3);
     const barrieres = BARRIERES.map((b) => versMonde(b.position));
-    // Ponts et pontons : rien ne pousse dessous.
+    // Ponts, pontons, chemins et remparts : rien ne pousse dessus (la marge dépend de la plante).
     const passages = [
-      ...plan.ponts,
-      ...Object.values(plan.ports).map((q) => ({ ax: q.x, az: q.z, bx: q.x + Math.sin(q.rot) * LONGUEUR_QUAI, bz: q.z + Math.cos(q.rot) * LONGUEUR_QUAI })),
+      ...plan.ponts.map((p) => ({ ...p, demi: p.largeur / 2 + 2 })),
+      ...Object.values(plan.ports).map((q) => ({ ax: q.x, az: q.z, bx: q.x + Math.sin(q.rot) * LONGUEUR_QUAI, bz: q.z + Math.cos(q.rot) * LONGUEUR_QUAI, demi: 3 })),
+      ...tracesAuSol().map(({ s: [ax, az, bx, bz], demi }) => ({ ax, az, bx, bz, demi })),
     ];
     // Clairière au cœur de chaque village.
-    const clairieres = VILLAGES.map((v) => ({ c: versMonde(v.centre), r: v.rayon * 0.45 }));
+    const clairieres = VILLAGES.map((v) => ({ c: versMonde(v.centre), r: v.rayon * 1.1 }));
 
     const cellules = new Map<number, number[]>();
     for (let i = 0; i < c.region.length; i++) {
@@ -118,14 +159,37 @@ function Vegetation() {
       l.push(i);
       cellules.set(c.region[i], l);
     }
+    // Ce qui pousse où : chaque région, puis les bois dessinés (en plus de la végétation de leur région).
+    const plantations: { liste: number[]; semis: Semis[]; ici: (x: number, z: number) => boolean }[] = [];
+    for (const [ri, liste] of cellules) {
+      const type = REGIONS[ri].vegetation;
+      if (type !== "aucune") plantations.push({ liste, semis: [...SEMIS[type], ROCHERS_EPARS], ici: (x, z) => regionA(x, z) === ri });
+    }
+    for (const b of BOIS_DESSINES) {
+      const dans = (x: number, z: number) => regionA(x, z) !== MER && dansZone(versCarte(x, z), b.zone);
+      const liste = [];
+      for (let i = 0; i < c.region.length; i++) if (dans(...centreCellule(i))) liste.push(i);
+      // Un bois : des arbres serrés (densité absolue), des pentes plus fortes acceptées, du sous-bois.
+      const [arbresBois, buissons] = SEMIS[b.vegetation];
+      plantations.push({
+        liste,
+        semis: [
+          { ...arbresBois, densite: b.densite, bosquets: undefined, penteMax: 0.9 },
+          { ...buissons, densite: buissons.densite * 2, bosquets: undefined },
+        ],
+        ici: dans,
+      });
+    }
+
     const hectares = (c.pas * c.pas) / 10000;
     const sortie = new Map<string, { forme: string; matrices: THREE.Matrix4[] }>();
     const obstacles: { x: number; y: number; z: number; r: number; h: number }[] = [];
-    for (const [ri, liste] of cellules) {
-      const type = REGIONS[ri].vegetation;
-      if (type === "aucune") continue;
-      for (const s of [...SEMIS[type], ROCHERS_EPARS]) {
-        const n = Math.min(4000, Math.round(liste.length * hectares * s.densite));
+    for (const { liste, semis, ici } of plantations) {
+      for (const s of semis) {
+        if (LEGER && PETITES.has(s.forme)) continue;
+        // En bosquets, on tire 2,5 fois plus de candidats : environ 40 % tombent dans un bosquet.
+        // Des instances : même par dizaines de milliers, elles coûtent peu.
+        const n = Math.min(80000, Math.round(liste.length * hectares * s.densite * (s.bosquets ? 2.5 : 1)));
         for (let k = 0; k < n; k++) {
           const [cx, cz] = centreCellule(liste[Math.floor(hasard() * liste.length)]);
           const x = cx + (hasard() - 0.5) * c.pas;
@@ -134,16 +198,19 @@ function Vegetation() {
           const e = s.echelle[0] + hasard() * (s.echelle[1] - s.echelle[0]);
           const etire = 0.85 + hasard() * 0.3;
           const rot = hasard() * Math.PI * 2;
+          const garde = hasard();
 
-          if (regionA(x, z) !== ri) continue;
+          if (s.bosquets === "dans" && garde > bosquet(x, z)) continue;
+          if (s.bosquets === "hors" && garde > 1 - bosquet(x, z)) continue;
+          if (!ici(x, z)) continue;
           const y = hauteurTerrain(x, z);
           if (y < s.hauteurMin) continue;
           const p = pente(x, z, 2);
           if (p > s.penteMax) continue;
-          if (surPlateforme(x, z, 3) || hauteurPont(x, z) !== null) continue;
-          if (passages.some((pt) => distanceSegment(x, z, pt.ax, pt.az, pt.bx, pt.bz).d < 8)) continue;
+          if ((!s.villages && surPlateforme(x, z, 3)) || hauteurPont(x, z) !== null) continue;
+          if (passages.some((pt) => distanceSegment(x, z, pt.ax, pt.az, pt.bx, pt.bz).d < pt.demi + s.marge)) continue;
           if (barrieres.some(([bx, bz]) => Math.hypot(bx - x, bz - z) < 30)) continue;
-          if (s.forme !== "rocher" && clairieres.some((cl) => Math.hypot(cl.c[0] - x, cl.c[1] - z) < cl.r)) continue;
+          if (!s.villages && s.forme !== "rocher" && clairieres.some((cl) => Math.hypot(cl.c[0] - x, cl.c[1] - z) < cl.r)) continue;
 
           const entree = sortie.get(variante) ?? { forme: s.forme, matrices: [] };
           // Enfoncé un peu, davantage sur une pente : jamais un pied dans le vide.
@@ -170,6 +237,7 @@ function Vegetation() {
           key={id}
           modele={id}
           matrices={matrices}
+          ombre={!PETITES.has(forme)}
           provisoire={f[forme].map((m, i) => (
             <Instances key={i} geometrie={m.geometrie} materiau={m.materiau} matrices={matrices} />
           ))}
@@ -380,7 +448,7 @@ function Feux() {
         {feux.map(([id, f]) => (
           <mesh key={id} position={[f.x, f.y + 0.9, f.z]}>
             <coneGeometry args={[0.6, 1.8, 7]} />
-            <meshStandardMaterial color="#ffb347" emissive="#ff7a1a" emissiveIntensity={3} />
+            <meshStandardMaterial color="#ffb347" emissive="#ff7a1a" emissiveIntensity={3} transparent opacity={0.82} blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
         ))}
       </group>
@@ -390,27 +458,6 @@ function Feux() {
 
 // ─── Lieux uniques ──────────────────────────────────────────────────────────
 
-/** Portail éteint vers Scìyolia : un anneau de pierre dressé. */
-function Portail() {
-  const p = lePlan().portail;
-  return (
-    <group position={[p.x, p.y, p.z]}>
-      <Modele
-        modele="portail-sciyolia"
-        provisoire={
-          <mesh material={PIERRE} position={[0, 7, 0]} castShadow>
-            <torusGeometry args={[6, 0.9, 10, 32]} />
-          </mesh>
-        }
-      />
-      <RigidBody type="fixed" colliders={false}>
-        <CylinderCollider args={[1.5, 1]} position={[-6, 1.5, 0]} />
-        <CylinderCollider args={[1.5, 1]} position={[6, 1.5, 0]} />
-      </RigidBody>
-    </group>
-  );
-}
-
 const GLACE = new THREE.MeshStandardMaterial({ color: "#d6f1fb", roughness: 0.1, metalness: 0.1, emissive: "#7fc9ea", emissiveIntensity: 0.15 });
 
 /** Palais givré : le modèle, ou des flèches de glace provisoires. */
@@ -419,9 +466,9 @@ function PalaisGivre() {
   const fleches = useMemo(() => {
     const r = graine(77);
     return Array.from({ length: 9 }, () => {
-      const x = (r() - 0.5) * 70;
-      const z = (r() - 0.5) * 70;
-      return { x, z, y: hauteurTerrain(p.x + x, p.z + z) - p.y, h: 25 + r() * 45 };
+      const x = (r() - 0.5) * 34;
+      const z = (r() - 0.5) * 34;
+      return { x, z, y: hauteurTerrain(p.x + x, p.z + z) - p.y, h: 14 + r() * 26 };
     });
   }, [p]);
   return (
@@ -430,7 +477,7 @@ function PalaisGivre() {
         modele="palais-givre"
         provisoire={fleches.map((f, i) => (
           <mesh key={i} material={GLACE} position={[f.x, f.y + f.h / 2 - 1, f.z]} castShadow>
-            <coneGeometry args={[4, f.h, 6]} />
+            <coneGeometry args={[2.5, f.h, 6]} />
           </mesh>
         ))}
       />
@@ -438,7 +485,25 @@ function PalaisGivre() {
   );
 }
 
-/** Lueur de lave au fond des cratères. */
+/** Lueur de lave au fond des cratères, et une colonne de fumée qui en monte lentement. */
+/** Une bouffée de fumée : un disque flou, plus opaque au centre. */
+function textureFumee() {
+  const t = document.createElement("canvas");
+  t.width = t.height = 64;
+  const g = t.getContext("2d")!;
+  const d = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  d.addColorStop(0, "rgba(255,255,255,0.9)");
+  d.addColorStop(0.6, "rgba(255,255,255,0.35)");
+  d.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = d;
+  g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(t);
+}
+
+/** Bouffées de fumée par volcan, et hauteur (m) à laquelle elles se dissipent. */
+const BOUFFEES = 14;
+const HAUT_FUMEE = 70;
+
 function Lave() {
   const volcans = useMemo(
     () =>
@@ -448,28 +513,54 @@ function Lave() {
       }),
     [],
   );
+  const fumee = useMemo(() => new THREE.SpriteMaterial({ map: textureFumee(), color: "#5a4c48", transparent: true, depthWrite: false, fog: true }), []);
+  const bouffees = useRef<(THREE.Sprite | null)[]>([]);
+  // Les bouffées montent du cratère en grossissant, s'éclaircissent, puis repartent d'en bas.
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    bouffees.current.forEach((b, i) => {
+      if (!b) return;
+      const k = (t / 40 + i / BOUFFEES) % 1;
+      b.position.set(Math.sin(i * 2.4 + t * 0.05) * 6 * k + k * 18, 8 + k * HAUT_FUMEE, Math.cos(i * 1.7) * 5 * k);
+      b.scale.setScalar(14 + k * 40);
+      b.material.opacity = Math.sin(Math.PI * k) * 0.55;
+    });
+  });
   return (
     <>
       {volcans.map((v, i) => (
         <group key={i} position={[v.x, v.y + 2, v.z]}>
           <mesh rotation-x={-Math.PI / 2}>
-            <circleGeometry args={[30, 24]} />
+            <circleGeometry args={[12, 24]} />
             <meshStandardMaterial color="#ff5a10" emissive="#ff3a00" emissiveIntensity={3} />
           </mesh>
           <pointLight position={[0, 20, 0]} color="#ff6a2a" intensity={4000} distance={400} decay={1.6} />
+          {Array.from({ length: BOUFFEES }, (_, j) => (
+            <sprite key={j} ref={(s) => void (bouffees.current[i * BOUFFEES + j] = s)} material={fumee.clone()} />
+          ))}
         </group>
       ))}
     </>
   );
 }
 
-/** Modèles uniques de monde.ts (DECORS) : invisibles (et traversables) tant que leur fichier n'existe pas. */
+/**
+ * Modèles uniques de monde.ts (DECORS). Tant que leur fichier n'existe pas, ils sont invisibles
+ * (et traversables), sauf ceux qui ont un substitut : une maison provisoire.
+ */
 function DecorsUniques() {
-  const decors = lePlan().decors.filter((d) => modeleExiste(d.def.modele));
+  const decors = lePlan().decors.filter((d) => modeleExiste(d.def.modele) || d.def.substitut);
   return (
     <>
       {decors.map((d, i) => (
-        <Modele key={i} modele={d.def.modele} position={[d.x, d.y, d.z]} rotation-y={d.rot} scale={d.def.echelle ?? 1} />
+        <Modele
+          key={i}
+          modele={d.def.modele}
+          position={[d.x, d.y, d.z]}
+          rotation-y={d.rot}
+          scale={d.def.echelle ?? 1}
+          provisoire={d.def.substitut && <MaisonProvisoire substitut={d.def.substitut} />}
+        />
       ))}
       <RigidBody type="fixed" colliders={false}>
         {decors
@@ -483,6 +574,19 @@ function DecorsUniques() {
   );
 }
 
+/** Une maison provisoire seule (murs, toit, porte côté +Z), centrée sur l'origine. */
+function MaisonProvisoire({ substitut }: { substitut: NonNullable<DecorUnique["substitut"]> }) {
+  const [l, h, p] = substitut.taille;
+  const materiaux = useMemo(() => ({ murs: mat(substitut.murs), toit: mat(substitut.toit, true) }), [substitut]);
+  return (
+    <>
+      <mesh geometry={BOITE} material={materiaux.murs} position-y={-1.5} scale={[l, h * MURS + 1.5, p]} castShadow receiveShadow />
+      <mesh geometry={TOIT} material={materiaux.toit} position-y={h * MURS} scale={[l * 1.08, h * (1 - MURS), p * 1.15]} castShadow />
+      <mesh geometry={BOITE} material={PORTE} position-z={p / 2} scale={[1.4, 2.3, 0.15]} />
+    </>
+  );
+}
+
 export function Decor() {
   return (
     <>
@@ -491,10 +595,11 @@ export function Decor() {
       <Ports />
       <Ponts />
       <Feux />
-      <Portail />
       <PalaisGivre />
       <Lave />
       <DecorsUniques />
+      <Remparts />
+      <Chemins />
       <BrumeSorcieres />
     </>
   );
