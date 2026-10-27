@@ -3910,9 +3910,9 @@
         ]
       ],
       "couleur": "#e0b050",
-      "nom": "Hautes montagnes",
-      "note": "",
-      "statut": "fait",
+      "nom": "A supprimer",
+      "note": "c'était des hautes montagnes mais je veux plus",
+      "statut": "a-faire",
       "cree": "2026-10-26T23:04:57.123Z",
       "reponse": "Les Hautes montagnes : pics déchiquetés jusqu’à environ 240 m au-dessus du sol."
     },

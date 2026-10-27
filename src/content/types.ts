@@ -43,7 +43,7 @@ export type Relief = {
   montagne: number;
 };
 
-export type Vegetation = "foret-doree" | "foret-sombre" | "pins-enneiges" | "arbres-morts" | "rochers" | "aucune";
+export type Vegetation = "foret-doree" | "foret-verte" | "foret-sombre" | "pins-enneiges" | "arbres-morts" | "rochers" | "aucune";
 
 /** Une région = une couleur de ta carte. */
 export type Region = {
@@ -294,4 +294,30 @@ export type Succes = {
 };
 
 /** Volcan : un cône avec un cratère de lave. */
+/**
+ * Labyrinthe magique (comme la forêt perdue de Zelda) : où qu'on entre dans sa région, on arrive dans
+ * la première salle. Chaque salle est une clairière d'où partent des chemins ; le bon mène à la salle
+ * suivante, les autres ramènent à la première. Après la dernière, on arrive à la fin (un lieu libre).
+ * Tenir `objet` en main fait briller le bon chemin.
+ */
+export type Labyrinthe = {
+  region: string;
+  objet: string;
+  salles: {
+    centre: Px;
+    /** Rayon de la clairière, en m. */
+    rayon: number;
+    /** Direction de chaque chemin, en degrés (0 = est, 90 = sud…). */
+    chemins: number[];
+    /** Indice du bon chemin dans `chemins`. */
+    bon: number;
+    /** Dans la première salle : le chemin qui fait sortir de la forêt. */
+    sortie?: number;
+  }[];
+  /** La fin : un cercle libre (village, point de vue), et où l'on y arrive. */
+  fin: { centre: Px; rayon: number; arrivee: Px };
+  /** Où l'on se retrouve en sortant de la forêt. */
+  dehors: Px;
+};
+
 export type Volcan = { position: Px; hauteur: number; /** Rayon de la base, en m. */ rayon: number };

@@ -3,7 +3,7 @@
 //
 //  La forme du monde vient de ta carte : public/carte.jpg (1920 × 1080).
 //    - chaque couleur = une région (voir REGIONS)
-//    - le blanc relié au bord de l'image = la mer
+//    - le bleu (REGLAGES.couleurMer), et le blanc relié au bord de l'image = la mer
 //    - le cadre en haut à droite (Scìyolia) est ignoré : c'est un autre monde
 //  Pour changer la forme du monde, il suffit de remplacer l'image.
 //
@@ -22,11 +22,13 @@ import type {
   Feu,
   FrontiereMagique,
   Indice,
+  Labyrinthe,
   Lieu,
   Massif,
   Objet,
   Pont,
   Port,
+  Px,
   Ramassable,
   Region,
   Rempart,
@@ -39,6 +41,8 @@ import type {
 export const REGLAGES = {
   /** Image de la carte (dans public/). */
   carte: "carte.jpg",
+  /** Couleur de la mer sur la carte (le blanc relié au bord de l'image est aussi de la mer). */
+  couleurMer: "#9abdff",
   /** Mètres par pixel de carte : règle la taille du monde. */
   metresParPixel: 1.5,
   /** Cadre à ignorer sur la carte (Scìyolia) : [x, y, largeur, hauteur] en pixels. */
@@ -67,6 +71,8 @@ export const REGIONS: Region[] = [
     point: [1000, 620],
     sousTitre: "Là où tout commence",
     cotes: "falaises",
+    // La plage du Hameau des Pêcheurs, au sud-est.
+    plages: [{ position: [1022, 690], rayon: 40 }],
     relief: { altitude: 12, amplitude: 4.5, montagne: 0.1 },
     ambiance: { brume: "#ead3a6", densite: 0.0024, lumiere: "#ffd28a", zenith: "#c9c2b0" },
     vegetation: "foret-doree",
@@ -235,6 +241,59 @@ export const REGIONS: Region[] = [
     sol: ["#8a8780", "#6f6c66"],
     lore: [{ texte: "Une muraille naturelle de montagnes, qui entoure une cité dont personne ne revient." }],
   },
+  {
+    // PROVISOIRE (nom et lore) : la terre la plus proche de la fracture, déjà rongée par elle.
+    id: "terres-rougies",
+    nom: "Les Terres rougies",
+    couleur: "#ff2b28",
+    sousTitre: "Ce que la fracture a touché",
+    relief: { altitude: 14, amplitude: 14, montagne: 0.45 },
+    ambiance: { brume: "#a85a3e", densite: 0.0026, lumiere: "#ffb070", ciel: "#ffc090", sol: "#4a2a20" },
+    vegetation: "arbres-morts",
+    sol: ["#8a4a34", "#6a3a2e"],
+    neige: false,
+    lore: [{ texte: "Une terre qui a perdu ses couleurs, sauf le rouge. Plus on va vers l'est, moins rien ne pousse." }],
+  },
+  {
+    // PROVISOIRE (nom et lore) : la corruption y commence à peine.
+    id: "landes-roses",
+    nom: "Les Landes roses",
+    couleur: "#fb7ff7",
+    sousTitre: "Une beauté qui inquiète",
+    relief: { altitude: 8, amplitude: 9, montagne: 0.15 },
+    ambiance: { brume: "#e6b8d8", densite: 0.0018, lumiere: "#ffd6e8", ciel: "#ffe0f0", sol: "#5a3a4a" },
+    vegetation: "foret-doree",
+    sol: ["#b07a92", "#8a6a74"],
+    lore: [{ texte: "Des landes où l'herbe et les feuilles virent au rose. Les habitants disent que c'est nouveau." }],
+  },
+  {
+    // Le labyrinthe magique : on y entre par n'importe où, on se retrouve au même endroit (voir LABYRINTHE).
+    id: "bois-labyrinthe",
+    nom: "Le Bois perdu",
+    couleur: "#d6ffae",
+    sousTitre: "Tous les chemins y ramènent",
+    relief: { altitude: 10, amplitude: 6, montagne: 0.05 },
+    ambiance: { brume: "#cde8b0", densite: 0.0055, lumiere: "#f0ffd0", ciel: "#e8ffd0", sol: "#3a4a2a" },
+    vegetation: "foret-verte",
+    sol: ["#7aa04a", "#6a7a5a"],
+    lore: [{ texte: "Une forêt noyée de brouillard. On a beau marcher, on revient toujours à la même clairière." }],
+  },
+  {
+    // La fracture d'or : une île de cristal au large, qu'on n'atteint pas (on la voit du bout du labyrinthe).
+    id: "fracture-or",
+    nom: "La Fracture d'or",
+    couleur: "#ffc300",
+    sousTitre: "Elle prend racine",
+    relief: { altitude: 25, amplitude: 40, montagne: 1 },
+    ambiance: { brume: "#ffd870", densite: 0.002, lumiere: "#fff0b0", ciel: "#fff0c0", sol: "#6a4a10" },
+    vegetation: "aucune",
+    sol: ["#ffc300", "#e8a010"],
+    neige: false,
+    lore: [
+      { texte: "Une blessure d'or au large du continent. Personne ne sait d'où elle vient." },
+      { texte: "Elle prend racine dans ce monde, le dévitalise et le corrompt. Si rien n'est fait, elle le consumera.", quand: { lieux: ["vue-fracture"] } },
+    ],
+  },
 ];
 
 // ─── Lieux-dits ─────────────────────────────────────────────────────────────
@@ -369,6 +428,58 @@ export const LIEUX: Lieu[] = [
     ],
   },
   {
+    id: "village-du-bois",
+    nom: "Le Village du Bois",
+    sousTitre: "Au bout des chemins",
+    position: [1362, 476],
+    rayon: 45,
+    lore: [{ texte: "Un village caché au bout du labyrinthe. Ceux qui y vivent ont appris à suivre la lumière." }],
+  },
+  {
+    id: "vue-fracture",
+    nom: "La Pointe",
+    sousTitre: "Face à la Fracture d'or",
+    position: [1402, 512],
+    rayon: 22,
+    lore: [{ texte: "D'ici, on voit la Fracture d'or briller au large." }],
+  },
+  {
+    // PROVISOIRE : lore à écrire.
+    id: "monastere-iceberg",
+    nom: "Le Monastère de l'Iceberg",
+    sousTitre: "Ceux qui gardent le portail",
+    position: [780, 254],
+    rayon: 45,
+    lore: [{ texte: "Des moines vivent dans l'iceberg creux. Ils gardent un portail enfoui dans la glace." }],
+  },
+  {
+    // PROVISOIRE : lore à écrire.
+    id: "forge-sous-cendre",
+    nom: "La Forge-sous-Cendre",
+    sousTitre: "Dans le flanc du volcan",
+    position: [442, 100],
+    rayon: 45,
+    lore: [{ texte: "Des mineurs et des forgerons ont creusé leur village dans le flanc du volcan, loin de la demeure du chef." }],
+  },
+  {
+    // PROVISOIRE : lore à écrire.
+    id: "hameau-pecheurs",
+    nom: "Le Hameau des Pêcheurs",
+    sousTitre: "Là où l'on respire",
+    position: [1008, 700],
+    rayon: 45,
+    lore: [{ texte: "Quelques cabanes sur la plage, des filets qui sèchent et des barques. Rien ne presse ici." }],
+  },
+  {
+    // PROVISOIRE : lore à écrire.
+    id: "bourg-egares",
+    nom: "Le Bourg des Égarés",
+    sousTitre: "Ceux qui n'ont plus de patrie",
+    position: [762, 492],
+    rayon: 60,
+    lore: [{ texte: "Un bourg rafistolé au milieu des Terres libres, où s'arrêtent ceux qui ne peuvent plus rentrer chez eux." }],
+  },
+  {
     id: "chemin-commencement",
     nom: "Le Chemin du commencement",
     sousTitre: "Le premier pas hors des remparts",
@@ -399,7 +510,36 @@ export const ESPECES: Espece[] = [
 
 // ─── Reliefs et passages ────────────────────────────────────────────────────
 
-export const VOLCANS: Volcan[] = [{ position: [440, 58], hauteur: 150, rayon: 140 }];
+// Flancs assez doux pour qu'on monte à pied jusqu'à la Forge-sous-Cendre.
+export const VOLCANS: Volcan[] = [{ position: [440, 58], hauteur: 115, rayon: 170 }];
+
+/** Le Bois perdu. */
+export const LABYRINTHE: Labyrinthe = {
+  region: "bois-labyrinthe",
+  objet: "fiole-lucioles",
+  salles: [
+    { centre: [1205, 445], rayon: 16, chemins: [180, 20, 300, 90], bon: 1, sortie: 0 },
+    { centre: [1258, 434], rayon: 16, chemins: [200, 330, 60, 110], bon: 3 },
+    { centre: [1296, 462], rayon: 16, chemins: [250, 10, 140, 300], bon: 2 },
+    { centre: [1252, 498], rayon: 16, chemins: [100, 220, 320], bon: 0 },
+  ],
+  fin: { centre: [1368, 488], rayon: 72, arrivee: [1336, 478] },
+  dehors: [1150, 478],
+};
+
+/** Les chemins qui partent de chaque salle du labyrinthe (22 px de long). */
+function cheminsDuLabyrinthe(): Chemin[] {
+  return LABYRINTHE.salles.flatMap((s, i) =>
+    s.chemins.map((angle, k) => {
+      const a = (angle * Math.PI) / 180;
+      return {
+        id: `labyrinthe-${i}-${k}`,
+        points: [s.centre, [Math.round(s.centre[0] + Math.cos(a) * 22), Math.round(s.centre[1] + Math.sin(a) * 22)]] as Px[],
+        largeur: 2.5,
+      };
+    }),
+  );
+}
 
 /** Montagnes dessinées : le relief monte de `hauteur` m à l'intérieur de la zone. */
 export const MASSIFS: Massif[] = [
@@ -488,7 +628,7 @@ export const BARRIERES: Barriere[] = [
 // ─── Voyages ────────────────────────────────────────────────────────────────
 
 export const PORTS: Port[] = [
-  // L'île du volcan n'a pas de port : on ne l'atteint pas.
+  // L'île du volcan n'a pas de port : on y va par le pont de la Forge-sous-Cendre.
   // On ne quitte la Corne qu'une fois l'avant-poste de l'Hippocampe neutralisé (PROVISOIRE : aucune énigme ne le fait encore).
   { id: "port-corne", nom: "Port de la Corne", position: [134, 311], destinations: ["port-atlantes"], quand: { enigmes: ["avant-poste-neutralise"] } },
   { id: "port-atlantes", nom: "Port des Atlantes", position: [233, 652], destinations: ["port-corne"] },
@@ -498,6 +638,10 @@ export const PONTS: Pont[] = [
   // Archipel des Atlantes : Oclène → Selenne → Eregone, là où tu les as dessinés.
   { entre: [[269, 842], [305, 841]], largeur: 4, exact: true },
   { entre: [[344, 849], [374, 823]], largeur: 4, exact: true },
+  // Le pont de glace vers le monastère de l'iceberg, depuis la côte sud des Terres de glace.
+  { entre: [[772, 298], [781, 272]], largeur: 3, exact: true },
+  // Le pont de la Forge-sous-Cendre, de la cité volcanique au flanc du volcan.
+  { entre: [[385, 110], [422, 108]], largeur: 4, exact: true },
 ];
 
 // ─── Villages et cités ──────────────────────────────────────────────────────
@@ -554,6 +698,38 @@ export const VILLAGES: Village[] = [
     substitut: { murs: "#3a2e3c", toit: "#2a2230", taille: [6.2, 6.5, 6.4] },
     // Un cercle de huttes autour du feu.
     disposition: { type: "place", anneaux: 1 },
+  },
+  {
+    // Le Village du Bois, au bout du labyrinthe.
+    id: "village-du-bois",
+    centre: [1362, 476],
+    rayon: 30,
+    nombre: 9,
+    modeles: ["cabane-peche-2", "maison-atlante-1", "maison-atlante-3", "hutte-sorciere-2"],
+    substitut: { murs: "#d8e4ec", toit: "#3a78b0", taille: [6, 6, 6.4] },
+    disposition: { type: "place", anneaux: 1 },
+    jardins: 0.5,
+  },
+  {
+    // Le Hameau des Pêcheurs : un cercle de cabanes sur la plage.
+    id: "hameau-pecheurs",
+    centre: [1004, 706],
+    rayon: 22,
+    nombre: 7,
+    modeles: ["cabane-peche-1", "cabane-peche-2", "cabane-peche-3"],
+    substitut: { murs: "#e8d8c0", toit: "#c2453a", taille: [6, 6, 6.4] },
+    disposition: { type: "place", anneaux: 1, rues: [[1022, 692]] },
+  },
+  {
+    // Le Bourg des Égarés : un village-rue sur le chemin du commencement, des maisons venues de partout.
+    id: "bourg-egares",
+    centre: [762, 492],
+    rayon: 55,
+    nombre: 14,
+    modeles: ["maison-village-3", "maison-vent-2", "maison-vent-3", "maison-atlante-1", "maison-atlante-3", "maison-volcan-2", "hutte-sorciere-2"],
+    substitut: { murs: "#c8b892", toit: "#8a6a3a", taille: [9, 9.6, 6.4] },
+    disposition: { type: "rue", chemin: "chemin-commencement" },
+    jardins: 0.3,
   },
   {
     // L'ancien village de la Corne : des pans de murs encore debout, autour de l'ancienne place.
@@ -636,6 +812,56 @@ export const DECORS: DecorUnique[] = [
     substitut: { murs: "#3d3330", toit: "#5a1e14", taille: [18, 13.8, 6.4] },
   },
 
+  // Le Monastère de l'Iceberg.
+  { modele: "monastere-glace", position: [781, 252], angle: 260, plateforme: 14, solide: [24, 28, 12] },
+  { modele: "lanterne", position: [779, 266] },
+  { modele: "lanterne", position: [784, 266] },
+
+  // La Forge-sous-Cendre : des maisons taillées en terrasses dans le flanc du volcan (le flanc est
+  // trop raide pour un village sur un sol commun), des forges, des braseros et de la lave.
+  { modele: "maison-volcan-1", position: [446, 96], angle: 100, solide: [9, 9.6, 6.4] },
+  { modele: "maison-volcan-3", position: [454, 104], angle: 80, solide: [6, 12.6, 6.4] },
+  { modele: "maison-volcan-1", position: [440, 90], angle: 90, solide: [9, 9.6, 6.4] },
+  { modele: "enclume", position: [440, 101], solide: [1.4, 1.5, 1.3] },
+  { modele: "brasero", position: [442, 103] },
+  { modele: "enclume", position: [447, 103], angle: 60, solide: [1.4, 1.5, 1.3] },
+  { modele: "brasero", position: [438, 97] },
+  { modele: "brasero", position: [447, 104] },
+  { modele: "tonneau", position: [437, 100], solide: [1.3, 1.2, 1.3] },
+  { modele: "caisse", position: [449, 99], angle: 40, solide: [1.2, 0.8, 1.4] },
+
+  // Le Hameau des Pêcheurs : pontons et barques dans la crique, filets (foin), tonneaux.
+  { modele: "ponton", position: [1030, 684], angle: 0, flotte: true },
+  { modele: "ponton", position: [1033, 684], angle: 0, flotte: true },
+  { modele: "ponton", position: [1036, 684], angle: 0, flotte: true },
+  { modele: "barque-rames", position: [1043, 676], angle: 20, flotte: true },
+  { modele: "barque-rames", position: [1042, 690], angle: 300, flotte: true },
+  { modele: "tonneau", position: [1018, 692], solide: [1.3, 1.2, 1.3] },
+  { modele: "caisse", position: [1019, 696], angle: 20, solide: [1.2, 0.8, 1.4] },
+  { modele: "botte-foin", position: [990, 694], angle: 50 },
+  { modele: "feu-de-camp", position: [1004, 706] },
+  { modele: "banc", position: [1001, 708], angle: 90 },
+  { modele: "lanterne", position: [1024, 686] },
+
+  // Le Bourg des Égarés : un marché de tentes et d'étals de chaque côté de la rue, des bannières.
+  { modele: "etal", position: [750, 473], angle: 250, solide: [3, 3.7, 3] },
+  { modele: "etal-vert", position: [757, 471], angle: 260, solide: [3, 3.7, 3] },
+  { modele: "etal", position: [765, 474], angle: 280, solide: [3, 3.7, 3] },
+  { modele: "charrette", position: [742, 475], angle: 70, solide: [2.3, 1.4, 3.5] },
+  { modele: "caisse", position: [753, 470], angle: 30, solide: [1.2, 0.8, 1.4] },
+  { modele: "tonneau", position: [761, 470], solide: [1.3, 1.2, 1.3] },
+  { modele: "tente", position: [756, 508], angle: 80, solide: [3.5, 3, 3.5] },
+  { modele: "tente", position: [766, 511], angle: 100, solide: [3.5, 3, 3.5] },
+  { modele: "tente", position: [776, 513], angle: 120, solide: [3.5, 3, 3.5] },
+  { modele: "feu-de-camp", position: [766, 504] },
+  { modele: "marmite", position: [766, 504] },
+  { modele: "botte-foin", position: [759, 503], angle: 20 },
+  { modele: "charrette", position: [782, 507], angle: 160, solide: [2.3, 1.4, 3.5] },
+  { modele: "banniere", position: [744, 470], angle: 200 },
+  { modele: "banniere", position: [772, 486], angle: 200 },
+  { modele: "lanterne", position: [758, 476] },
+  { modele: "lanterne", position: [770, 500] },
+
   // Terres libres : le carrefour du feu (marmite, panneau, stèle, vieille charrette, clôtures).
   { modele: "marmite", position: [700, 470], angle: 20 },
   { modele: "panneau", position: [705, 465], angle: 200 },
@@ -715,6 +941,17 @@ export const DECORS: DecorUnique[] = [
 
 /** Chemins de terre (largeur en m). */
 export const CHEMINS: Chemin[] = [
+  ...cheminsDuLabyrinthe(),
+  // Du pont à la Forge-sous-Cendre : la montée la plus douce.
+  { id: "montee-forge", points: [[424, 110], [433, 109], [440, 106], [444, 101]], largeur: 3 },
+  // Lave de la Forge-sous-Cendre, qui descend vers la mer.
+  { id: "lave-forge", points: [[452, 104], [460, 110], [466, 114]], largeur: 3, matiere: "lave" },
+  {
+    // Du Village blanc au Hameau des Pêcheurs, par la côte.
+    id: "chemin-pecheurs",
+    points: [[1011, 648], [1019, 654], [1026, 664], [1022, 678], [1014, 694]],
+    largeur: 3,
+  },
   // Cité volcanique : des rigoles de lave qui descendent de la ville.
   { id: "lave-ouest", points: [[390, 262], [380, 270], [368, 276]], largeur: 3.5, matiere: "lave" },
   { id: "lave-sud", points: [[452, 258], [462, 268], [468, 280]], largeur: 3.5, matiere: "lave" },
@@ -842,8 +1079,8 @@ export const REMPARTS: Rempart[] = [
     id: "remparts-village-blanc",
     zone: [[1010, 601], [1003, 600], [982, 604], [967, 616], [960, 626], [961, 652], [980, 674], [998, 675], [1019, 654], [1036, 643], [1040, 637], [1039, 625], [1033, 610], [1025, 603], [1014, 603]],
     style: "pierre",
-    // Là où part le chemin du commencement.
-    portes: [[977, 608]],
+    // Là où part le chemin du commencement, et la porte des pêcheurs au sud-est.
+    portes: [[977, 608], [1019, 654]],
   },
   {
     // Le fort de l'avant-poste : ses tours d'angle sont des tours de guet ; la porte donne vers les terres.
@@ -879,10 +1116,18 @@ export const OBJETS: Objet[] = [
   { id: "lanterne", nom: "Lanterne", description: "Éclaire autour de toi quand tu la tiens en main.", forme: "lanterne" },
   { id: "boussole", nom: "Boussole", description: "Son aiguille ne pointe pas le nord, mais quelque chose d'autre.", forme: "boussole" },
   { id: "braise", nom: "Braise du volcan", description: "Une braise qui ne s'éteint jamais. Brûlante.", forme: "cristal" },
+  {
+    // PROVISOIRE : posée au Village blanc pour l'instant.
+    id: "fiole-lucioles",
+    nom: "Fiole de lucioles",
+    description: "Dans le Bois perdu, quand on la tient en main, le bon chemin s'illumine.",
+    forme: "lanterne",
+  },
   { id: "cle-rouillee", nom: "Clé rouillée", description: "Une vieille clé de fer. Elle ouvre sûrement quelque chose, quelque part.", forme: "cle" },
 ];
 
 export const RAMASSABLES: Ramassable[] = [
+  { objet: "fiole-lucioles", position: [1004, 641] },
   { objet: "lanterne", position: [1012, 628] },
   { objet: "cle-rouillee", position: [985, 650] },
 ];
@@ -899,6 +1144,14 @@ export const USAGES: Usage[] = [
 // ─── Indices et énigmes (PROVISOIRE) ────────────────────────────────────────
 
 export const INDICES: Indice[] = [
+  {
+    id: "stele-fracture",
+    objet: "stele",
+    position: [1404, 514],
+    titre: "Stèle de la pointe",
+    texte:
+      "« Ce que vous voyez là-bas est la Fracture d'or. Un objet magique, apparu par hasard. Elle prend racine dans notre monde : elle le dévitalise et le corrompt. Si nous ne faisons rien, elle le consumera tout entier. »",
+  },
   {
     id: "carnet-depart",
     objet: "livre",

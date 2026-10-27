@@ -165,6 +165,7 @@ export async function chargerCarte(): Promise<Carte> {
   const palette = [...new Set(REGIONS.map((r) => r.couleur.toLowerCase()))].filter((c) => c !== "#ffffff");
   const rgb = palette.map(hex);
   const indexBlanc = palette.length;
+  const mer0 = hex(REGLAGES.couleurMer);
 
   // 1. Classement de chaque cellule : couleur de région, blanc, ou contour noir.
   const classe = new Uint8Array(N);
@@ -198,6 +199,11 @@ export async function chargerCarte(): Promise<Carte> {
       const b = pixels[k + 2];
       if (Math.min(r, g, b) > 226 && Math.max(r, g, b) - Math.min(r, g, b) < 22) {
         classe[i] = MARQUE_BLANC;
+        continue;
+      }
+      // La mer peinte de sa couleur.
+      if ((r - mer0[0]) ** 2 + (g - mer0[1]) ** 2 + (b - mer0[2]) ** 2 < 40 * 40) {
+        classe[i] = MARQUE_MER;
         continue;
       }
       let meilleur = MARQUE_CONTOUR;

@@ -181,7 +181,8 @@ export function Joueur() {
     // Si l'on est déjà trop loin (après un saut depuis un pont), on peut toujours revenir vers la côte.
     if (hauteurPont(nx, nz) === null) {
       const loin = distanceEnMer(nx, nz);
-      if (loin > REGLAGES.eauMax && loin >= distanceEnMer(px, pz)) return "La mer est trop profonde. Il te faut un bateau.";
+      // (seulement dans l'eau : une plage peut être classée « mer » sur la carte tout en étant au sec)
+      if (loin > REGLAGES.eauMax && loin >= distanceEnMer(px, pz) && hauteurSol(nx, nz) < NIVEAU_MER) return "La mer est trop profonde. Il te faut un bateau.";
     }
     // Frontières magiques entre deux régions (ou entre une région et la mer).
     const za = zone(px, pz);

@@ -135,6 +135,7 @@ export const LUEURS: Record<string, { hauteur: number; couleur: string; taille: 
   "champignon-1": { hauteur: 0.55, couleur: "#b07aff", taille: 1.4 },
   "champignon-2": { hauteur: 0.5, couleur: "#b07aff", taille: 1.2 },
   chaudron: { hauteur: 1.1, couleur: "#7dff7a", taille: 2 },
+  "monastere-glace": { hauteur: 9, couleur: "#7fd4ff", taille: 14 },
 };
 
 /** Halo autour des sources de lumière : une lueur douce, que le bloom fait briller. */

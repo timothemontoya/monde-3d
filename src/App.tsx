@@ -69,6 +69,7 @@ export default function App() {
           w.jeu = useJeu;
           // versMonde([px, py]) : pixels de la carte → mètres (utilisé par scripts/photos.mjs).
           w.versMonde = versMonde;
+          w.hauteurSol = hauteurSol;
           // hauteurEn(px, py) : altitude du sol à cet endroit de la carte.
           w.hauteurEn = (px: number, py: number) => hauteurSol(...versMonde([px, py]));
           // regionEn(px, py) : nom de la région à cet endroit de la carte.

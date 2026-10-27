@@ -170,7 +170,9 @@ function placerPont(pont: Pont, plateformes: Plateforme[]): PontPlace | null {
   const longueur = Math.hypot(bx - ax, bz - az);
   // Le pont plonge un peu au milieu, sans jamais toucher l'eau.
   const creux = Math.max(0, Math.min(4, longueur * 0.02, Math.min(ha, hb) - 3));
-  for (const [x, z, h] of [[ax, az, ha], [bx, bz, hb]]) plateformes.push({ x, z, rayon: pont.largeur * 0.75 + 1.5, fondu: 8, hauteur: h });
+  // Un pont raide : de petites plateformes aux bouts, sinon le tablier arrive au pied d'une marche.
+  const raide = Math.abs(hb - ha) / (longueur || 1) > 0.2;
+  for (const [x, z, h] of [[ax, az, ha], [bx, bz, hb]]) plateformes.push({ x, z, rayon: raide ? 1.5 : pont.largeur * 0.75 + 1.5, fondu: 8, hauteur: h });
   return { ax, az, bx, bz, largeur: pont.largeur, ha: ha + 0.05, hb: hb + 0.05, creux };
 }
 
@@ -258,7 +260,8 @@ function emplacements(v: Village, cx: number, cz: number, hasard: () => number):
     // Le long du chemin, des deux côtés, à partir du point le plus proche du centre.
     const chemin = CHEMINS.find((c) => c.id === d.chemin);
     if (!chemin) throw new Error(`Village ${v.id} : chemin inconnu « ${d.chemin} ».`);
-    const decalage = chemin.largeur / 2 + p0 / 2 + 1.5;
+    // Assez loin pour passer le contrôle « pas de maison sur un chemin » (qui prend le plus grand côté).
+    const decalage = chemin.largeur / 2 + Math.max(l0, p0) / 2 + 1.5;
     const pas = l0 + 3;
     const points: [number, number, number, number][] = [];
     for (const [ax, az, bx, bz] of segments(chemin.points)) {
@@ -291,6 +294,9 @@ const GARNITURES: Record<string, string[]> = {
   "hameau-atlante": ["tonneau", "caisse", "seau", "buisson-1", "buisson-2"],
   "cite-du-vent": ["botte-foin", "tonneau", "caisse", "buisson-2"],
   "campement-sorcieres": ["chaudron", "citrouille", "citrouille", "champignon-1", "champignon-2"],
+  "bourg-egares": ["tonneau", "caisse", "botte-foin", "seau", "coffre", "buisson-1", "citrouille"],
+  "hameau-pecheurs": ["tonneau", "caisse", "seau", "botte-foin", "barque-rames"],
+  "forge-sous-cendre": ["tonneau", "caisse", "brasero", "enclume"],
 };
 /** Emplacements autour d'une maison, dans son repère (en fractions de largeur l et de profondeur p, + un écart en m). */
 const COINS: [number, number, number, number][] = [

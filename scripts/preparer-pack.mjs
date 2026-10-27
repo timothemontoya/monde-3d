@@ -14,6 +14,8 @@ import { join } from "node:path";
 
 // Palette (sRGB) : reprend les couleurs des formes provisoires de src/world/Decor.tsx.
 const DORE = { leafsFall: "#e2b54e", woodBirch: "#6b5236" };
+const VERT = { leafsGreen: "#5f9a3a", woodBark: "#5a4230" };
+const VERT_SOMBRE = { leafsGreen: "#3f7a34", woodBark: "#4a3628" };
 const DORE_PALE = { leafsFall: "#e9c45c", woodBirch: "#6b5236" };
 const DORE_ROUX = { leafsFall: "#c98a2e", woodBirch: "#6b5236" };
 const SORCIERE = { leafsDark: "#4a3358", woodBarkDark: "#2a2228" };
@@ -177,6 +179,24 @@ const PALETTE_VILLAGE = {
   "#f2bf99": "#efe6d2",
 };
 
+/**
+ * Monastère de l'iceberg (Castle Kit) : une haute tour hexagonale au centre, deux tours carrées
+ * plus basses de part et d'autre, reliées par des murs ; une porte voûtée sur l'avant (+Z).
+ */
+function monastere() {
+  const D = Math.PI / 2;
+  const p = (piece, pos, rot = 0, echelle = [1, 1, 1]) => ({ source: `castle:${piece}`, pos, rot, echelle });
+  const pieces = [];
+  const empiler = (x, z, liste) => {
+    let y = 0;
+    for (const [piece, h] of liste) (pieces.push(p(piece, [x, y, z])), (y += h));
+  };
+  empiler(0, 0, [["tower-hexagon-base", 1.31], ["tower-hexagon-mid", 0.46], ["tower-hexagon-mid", 0.46], ["tower-hexagon-mid", 0.46], ["tower-hexagon-mid", 0.46], ["tower-hexagon-roof", 0.83]]);
+  for (const x of [-1.6, 1.6]) empiler(x, 0.3, [["tower-square-base", 1.01], ["tower-square-mid-windows", 1.01], ["tower-square-roof", 2.01]]);
+  pieces.push(p("wall", [-0.8, 0, 0.3], 0), p("wall", [0.8, 0, 0.3], 0), p("wall", [0, 0, -0.8], D));
+  return pieces;
+}
+
 /** Teintes des murs par région (elles multiplient la texture du kit). */
 const MURS_VILLAGE = { colormap: "#f2ead8" };
 const MURS_VOLCAN = { colormap: "#8a7a74" };
@@ -210,6 +230,11 @@ const RECETTES = {
   "buisson-1": { sources: ["nature:plant_bushLarge"], largeur: 2.5, couleurs: FEUILLAGE },
   "buisson-2": { sources: ["nature:plant_bushDetailed"], largeur: 2.5, couleurs: FEUILLAGE },
   "feu-de-camp": { sources: ["nature:campfire_stones", "nature:campfire_logs"], largeur: 2.5, couleurs: { stone: "#8a857c" } },
+  // Le Bois perdu (labyrinthe) : des arbres verts, serrés et moussus.
+  "arbre-vert-1": { sources: ["nature:tree_default"], hauteur: 11, couleurs: VERT },
+  "arbre-vert-2": { sources: ["nature:tree_oak"], hauteur: 10, couleurs: VERT_SOMBRE },
+  "arbre-vert-3": { sources: ["nature:tree_detailed"], hauteur: 12, couleurs: VERT },
+  "arbre-vert-4": { sources: ["nature:tree_fat"], hauteur: 9, couleurs: VERT_SOMBRE },
   "arbre-dore-4": { sources: ["nature:tree_cone_fall"], hauteur: 9, couleurs: DORE_ROUX },
   "arbre-dore-5": { sources: ["nature:tree_tall_fall"], hauteur: 12, couleurs: DORE_ROUX },
   "arbre-dore-6": { sources: ["nature:tree_fat_fall"], hauteur: 8, couleurs: DORE_PALE },
@@ -278,6 +303,14 @@ const RECETTES = {
     couleurs: MURS_VOLCAN,
   },
   "palais-givre": { pieces: palais(), echelle: 8, couleurs: { colormap: "#d8eef9" }, uni: true },
+
+  // Monastère de l'iceberg : de la glace bleue, éclairée de l'intérieur (halo dans Lueurs.tsx).
+  "monastere-glace": { pieces: monastere(), echelle: 7, couleurs: { colormap: "#bfe4f5" }, uni: true },
+  // Hameau des Pêcheurs : petites cabanes de bois aux toits de couleur, et des pontons.
+  "cabane-peche-1": { pieces: maison({ largeur: 2, bas: "wall-wood", toit: "roof", couleurToit: "#c2453a" }), echelle: TUILE, couleurs: { colormap: "#e8d8c0" } },
+  "cabane-peche-2": { pieces: maison({ largeur: 2, bas: "wall-wood", toit: "roof", couleurToit: "#3a78b0", cheminee: false }), echelle: TUILE, couleurs: { colormap: "#d8e4ec" } },
+  "cabane-peche-3": { pieces: maison({ largeur: 2, bas: "wall-wood", toit: "roof", couleurToit: "#e0b03a", fenetre: "-window-round" }), echelle: TUILE, couleurs: { colormap: "#f0e2c8" } },
+  ponton: { sources: ["pirate:structure-platform-dock"], largeur: 5 },
 
   // Ruines de la Corne : pierre noircie, bois brûlé.
   "maison-ruine-1": { pieces: ruine(1), echelle: TUILE, couleurs: { colormap: "#9a8f80" } },

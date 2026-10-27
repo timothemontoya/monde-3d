@@ -2,13 +2,14 @@ import { useFrame } from "@react-three/fiber";
 import { CuboidCollider, CylinderCollider, RigidBody } from "@react-three/rapier";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { BARRIERES, BOIS as BOIS_DESSINES, REGIONS, VILLAGES, VOLCANS } from "../content/monde";
+import { BARRIERES, BOIS as BOIS_DESSINES, LABYRINTHE, REGIONS, VILLAGES, VOLCANS } from "../content/monde";
 import type { DecorUnique, Vegetation as TypeVegetation } from "../content/types";
 import { barriereOuverte, useJeu } from "../game/store";
 import { LEGER } from "../qualite";
 import { BrumeSorcieres } from "./BrumeSorcieres";
 import { rotationFace } from "./geometrie";
 import { Herbe } from "./Herbe";
+import { Labyrinthe } from "./Labyrinthe";
 import { Fumees, Halos, LUEURS } from "./Lueurs";
 import { centreCellule, indiceCellule, laCarte, MER, regionA, versCarte, versMonde } from "./carte";
 import { Chemins } from "./Chemins";
@@ -47,6 +48,10 @@ function lesFormes() {
     "arbre-dore": [
       { geometrie: tronc, materiau: mat("#4a3b2a") },
       { geometrie: boule, materiau: mat("#c9952f", true) },
+    ],
+    "arbre-vert": [
+      { geometrie: tronc, materiau: mat("#4a3b2a") },
+      { geometrie: boule, materiau: mat("#5f9a3a", true) },
     ],
     "arbre-sorciere": [
       { geometrie: tronc, materiau: mat("#2a2228") },
@@ -162,6 +167,8 @@ const PETITES = new Set(["herbe", "fleur"]);
 
 const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
   "foret-doree": [arbres("arbre-dore", 6, 5, "dans"), BUISSONS, HERBES, FLEURS, BOIS_MORT, TRACES],
+  // Le Bois perdu : une forêt serrée, qu'on ne traverse qu'en suivant les chemins.
+  "foret-verte": [{ ...arbres("arbre-vert", 4, 140), penteMax: 0.9, echelle: [0.8, 1.5] }, { ...BUISSONS, densite: 14, bosquets: undefined }, { ...HERBES, densite: 150 }, CHAMPIGNONS, BOIS_MORT],
   "foret-sombre": [arbres("arbre-sorciere", 3, 25), { ...BUISSONS, densite: 8, bosquets: undefined }, CHAMPIGNONS, { ...HERBES, densite: 30 }, BOIS_MORT],
   "pins-enneiges": [arbres("pin-enneige", 5, 14, "dans"), { ...BOIS_MORT, densite: 0.5 }, { ...ROCHERS_EPARS, densite: 2.5, variantes: variantes("rocher-glace", 3) }],
   "arbres-morts": [{ ...arbres("arbre-mort", 2, 4, "dans"), echelle: [0.7, 1.2] }, { ...BOIS_MORT, densite: 2 }, { ...ROCHERS_EPARS, densite: 1.5 }],
@@ -184,7 +191,11 @@ function Vegetation() {
       ...tracesAuSol().map(({ s: [ax, az, bx, bz], demi }) => ({ ax, az, bx, bz, demi })),
     ];
     // Clairière au cœur de chaque village.
-    const clairieres = VILLAGES.map((v) => ({ c: versMonde(v.centre), r: v.rayon * 1.1 }));
+    const clairieres = [
+      ...VILLAGES.map((v) => ({ c: versMonde(v.centre), r: v.rayon * 1.1 })),
+      // Les salles du labyrinthe.
+      ...LABYRINTHE.salles.map((s) => ({ c: versMonde(s.centre), r: s.rayon + 2 })),
+    ];
 
     const cellules = new Map<number, number[]>();
     for (let i = 0; i < c.region.length; i++) {
@@ -564,6 +575,35 @@ function PalaisGivre() {
   );
 }
 
+/** La Fracture d'or : des cristaux d'or lumineux qui jaillissent de son île, qu'on voit de loin. */
+function Fracture() {
+  const cristaux = useMemo(() => {
+    const c = laCarte();
+    const ri = REGIONS.findIndex((r) => r.id === "fracture-or");
+    if (ri < 0) return [];
+    const cellules: number[] = [];
+    for (let i = 0; i < c.region.length; i++) if (c.region[i] === ri) cellules.push(i);
+    const r = graine(97);
+    return Array.from({ length: Math.min(70, cellules.length) }, () => {
+      const [x, z] = centreCellule(cellules[Math.floor(r() * cellules.length)]);
+      const h = 8 + r() * 26;
+      return { x, z, y: hauteurTerrain(x, z), h, rx: (r() - 0.5) * 0.7, rz: (r() - 0.5) * 0.7 };
+    });
+  }, []);
+  const or = useMemo(() => new THREE.MeshStandardMaterial({ color: "#ffd24a", emissive: "#ffb000", emissiveIntensity: 1.6, roughness: 0.3, flatShading: true }), []);
+  const halos = useMemo(() => cristaux.map((k) => [k.x, k.y + k.h * 0.6, k.z] as [number, number, number]), [cristaux]);
+  return (
+    <>
+      {cristaux.map((k, i) => (
+        <mesh key={i} material={or} position={[k.x, k.y + k.h / 2 - 1, k.z]} rotation={[k.rx, 0, k.rz]}>
+          <coneGeometry args={[1.5 + k.h * 0.08, k.h, 5]} />
+        </mesh>
+      ))}
+      <Halos positions={halos} couleur="#ffc84a" taille={10} />
+    </>
+  );
+}
+
 /** Le portail runique : un anneau de magie violette, une rune au centre, tant que la barrière est fermée. */
 function PortailRunique() {
   const b = BARRIERES.find((x) => x.id === "portail-runique");
@@ -740,9 +780,11 @@ export function Decor() {
       <Feux />
       <PalaisGivre />
       <PortailRunique />
+      <Fracture />
       <Lave />
       <DecorsUniques />
       <Fumees />
+      <Labyrinthe />
       <Herbe />
       <Remparts />
       <Chemins />
