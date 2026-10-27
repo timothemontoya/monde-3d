@@ -43,8 +43,8 @@ export const REGLAGES = {
   metresParPixel: 1.5,
   /** Cadre à ignorer sur la carte (Scìyolia) : [x, y, largeur, hauteur] en pixels. */
   ignorer: [1385, 0, 535, 415] as [number, number, number, number],
-  /** Point de départ (village blanc), un peu au sud du feu de camp. */
-  depart: [1000, 645] as [number, number],
+  /** Point de départ (village blanc) : sur la grand-rue, face à la place. */
+  depart: [989, 623] as [number, number],
   /** Vitesse normale et rapide (Maj), en m/s. */
   vitesse: 10,
   vitesseRapide: 28,

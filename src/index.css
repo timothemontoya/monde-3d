@@ -182,3 +182,26 @@ kbd {
 /* ── Chargement ──────────────────────────────────────────────── */
 .chargement { position: fixed; inset: 0; display: grid; place-items: center; background: #000; font-family: var(--titre);
   letter-spacing: 0.3em; text-transform: uppercase; color: var(--texte-2); font-size: 0.85rem; }
+
+/* ─── Commandes tactiles ───────────────────────────────────────────────── */
+.tactile { position: fixed; inset: 0; z-index: 20; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tactile-joystick, .tactile-regard { position: absolute; top: 0; bottom: 0; pointer-events: auto; touch-action: none; }
+.tactile-joystick { left: 0; width: 45%; }
+.tactile-regard { right: 0; width: 55%; }
+.tactile-socle {
+  position: fixed; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 9, 7, 0.25); border: 2px solid rgba(241, 220, 170, 0.45);
+}
+.tactile-bouton-joystick { width: 46px; height: 46px; border-radius: 50%; background: rgba(241, 220, 170, 0.7); box-shadow: 0 0 12px rgba(0, 0, 0, 0.4); }
+.tactile-boutons {
+  position: absolute; right: 16px; bottom: 20px; display: grid; grid-template-columns: repeat(2, auto); gap: 10px; pointer-events: auto;
+}
+.tactile-haut { position: absolute; left: 16px; top: 14px; display: flex; gap: 8px; pointer-events: auto; }
+.tactile-touche {
+  min-width: 72px; min-height: 52px; padding: 0 12px; border-radius: 26px; font-family: var(--titre); font-size: 0.85rem;
+  letter-spacing: 0.06em; color: var(--or-pale); background: rgba(10, 9, 7, 0.45); border: 1px solid rgba(217, 181, 106, 0.55);
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.tactile-touche:active { background: rgba(217, 181, 106, 0.35); }
+.tactile-principal { border-color: var(--or); background: rgba(60, 44, 18, 0.6); }
+.tactile-haut .tactile-touche { min-height: 40px; min-width: 64px; font-size: 0.75rem; }

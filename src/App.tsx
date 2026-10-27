@@ -10,6 +10,7 @@ import { Joueur, TOUCHES } from "./player/Joueur";
 import { LEGER } from "./qualite";
 import { preparerCarte } from "./ui/Carte";
 import { Interface } from "./ui/Interface";
+import { RegardTactile, TACTILE } from "./ui/Tactile";
 import { Atmosphere, SOLEIL } from "./world/Atmosphere";
 import { Barrieres } from "./world/Barrieres";
 import { bornes, carteComprise, chargerCarte, MER, regionA, versMonde } from "./world/carte";
@@ -144,6 +145,7 @@ function Monde() {
             <Decor />
             <Objets />
             {!VUE && <Joueur />}
+          {TACTILE && <RegardTactile />}
           </Physics>
           <ObjetEnMain />
           {/* Lumière dorée qui « bave » sur les zones brillantes, coins assombris : rendu cinéma. */}

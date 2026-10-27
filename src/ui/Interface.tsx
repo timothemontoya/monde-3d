@@ -3,6 +3,7 @@ import { INDICES, LIEUX, OBJETS, REGIONS, SUCCES, USAGES } from "../content/mond
 import { positionJoueur } from "../game/joueur";
 import { enigmeParId, indiceParId, normaliser, objetParId, portParId, remplie, useJeu } from "../game/store";
 import { capturerSouris, teleporterVers } from "../player/Joueur";
+import { CommandesTactiles, TACTILE } from "./Tactile";
 import { versMonde } from "../world/carte";
 import { lePlan } from "../world/plan";
 import { MiniCarte } from "./Carte";
@@ -361,7 +362,8 @@ export function Interface() {
   return (
     <div className="interface">
       {enJeu && !panneau && <ATH />}
-      {enJeu && !panneau && !fondu && !verrouille && (
+      <CommandesTactiles />
+      {enJeu && !panneau && !fondu && !verrouille && !TACTILE && (
         <button className="reprendre-souris bouton bouton-principal" onClick={capturerSouris}>
           Cliquer pour reprendre
         </button>
