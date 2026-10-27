@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Réglages, agents et mémoire de Claude Code : propres à cette machine
+.claude/
