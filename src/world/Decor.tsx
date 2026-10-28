@@ -140,7 +140,7 @@ const BOIS_MORT: Semis = { densite: 1, variantes: ["souche", "tronc"], forme: "s
 /** Traces de vie dans la campagne : une vieille clôture, une stèle, un tronc, un tonneau oublié. */
 const TRACES: Semis = {
   densite: 0.25,
-  variantes: ["stele-moussue", "cloture", "tronc", "tonneau", "souche", "botte-foin"],
+  variantes: ["stele-moussue", "cloture", "cloture", "tronc", "tonneau", "souche", "botte-foin", "caisse", "panneau", "seau"],
   forme: "souche",
   penteMax: 0.4,
   hauteurMin: 2,
@@ -170,24 +170,86 @@ const FALAISES: Semis = {
 /** Formes des petites plantes : sans ombre portée, et absentes du mode léger. */
 const PETITES = new Set(["herbe", "fleur"]);
 
+/** Arbres isolés dans les clairières et les prés, entre les bosquets. */
+const isoles = (nom: string, n: number, densite: number): Semis => ({ ...arbres(nom, n, densite), bosquets: "hors", echelle: [0.7, 1.3] });
+/** Buissons hors des bosquets : lisières, bords de champs. */
+const BUISSONS_EPARS: Semis = { ...BUISSONS, densite: 5, bosquets: "hors" };
+/** Petits rochers au ras du sol, partout. */
+const CAILLOUX: Semis = { ...ROCHERS_EPARS, densite: 6, echelle: [0.25, 0.6], marge: 0.8 };
+
 const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
-  "foret-doree": [arbres("arbre-dore", 6, 5, "dans"), BUISSONS, HERBES, FLEURS, BOIS_MORT, TRACES],
-  // Landes roses : arbres en fleurs épars, beaucoup de fleurs, des rochers.
-  "landes-roses": [arbres("arbre-rose", 3, 4, "dans"), BUISSONS, { ...HERBES, densite: 200 }, { ...FLEURS, densite: 70 }, TRACES, { ...BOIS_MORT, densite: 0.4 }],
+  "foret-doree": [
+    arbres("arbre-dore", 6, 13, "dans"),
+    isoles("arbre-dore", 6, 1.8),
+    { ...BUISSONS, densite: 20 },
+    BUISSONS_EPARS,
+    HERBES,
+    { ...FLEURS, densite: 90 },
+    { ...BOIS_MORT, densite: 2.5 },
+    { ...TRACES, densite: 1.2 },
+    CAILLOUX,
+  ],
+  // Landes roses : arbres en fleurs, beaucoup de fleurs, des rochers.
+  "landes-roses": [
+    arbres("arbre-rose", 3, 11, "dans"),
+    isoles("arbre-rose", 3, 2.5),
+    { ...BUISSONS, densite: 14 },
+    BUISSONS_EPARS,
+    { ...HERBES, densite: 220 },
+    { ...FLEURS, densite: 130 },
+    { ...TRACES, densite: 0.8 },
+    { ...BOIS_MORT, densite: 0.8 },
+    CAILLOUX,
+  ],
   // Le Bois perdu : une forêt serrée, qu'on ne traverse qu'en suivant les chemins.
   "foret-verte": [
     { ...arbres("arbre-vert", 4, 140), penteMax: 0.9, echelle: [0.8, 1.5] },
-    { ...BUISSONS, densite: 14, bosquets: undefined },
-    { ...HERBES, densite: 150 },
-    CHAMPIGNONS,
-    { ...BOIS_MORT, densite: 3 },
+    { ...BUISSONS, densite: 22, bosquets: undefined },
+    { ...HERBES, densite: 180 },
+    { ...CHAMPIGNONS, densite: 22 },
+    { ...FLEURS, densite: 25, bosquets: undefined },
+    { ...BOIS_MORT, densite: 4 },
     // De vieilles pierres moussues, comme des bornes oubliées.
-    { ...TRACES, densite: 1.2, variantes: ["stele-moussue", "stele-moussue", "tronc", "souche"], bosquets: undefined },
+    { ...TRACES, densite: 1.5, variantes: ["stele-moussue", "stele-moussue", "tronc", "souche"], bosquets: undefined },
+    CAILLOUX,
   ],
-  "foret-sombre": [arbres("arbre-sorciere", 3, 25), { ...BUISSONS, densite: 8, bosquets: undefined }, CHAMPIGNONS, { ...HERBES, densite: 30 }, BOIS_MORT],
-  "pins-enneiges": [arbres("pin-enneige", 5, 14, "dans"), { ...BOIS_MORT, densite: 0.5 }, { ...ROCHERS_EPARS, densite: 2.5, variantes: variantes("rocher-glace", 3) }],
-  "arbres-morts": [{ ...arbres("arbre-mort", 2, 4, "dans"), echelle: [0.7, 1.2] }, { ...BOIS_MORT, densite: 2 }, { ...ROCHERS_EPARS, densite: 1.5 }],
-  rochers: [{ ...ROCHERS_EPARS, densite: 3, echelle: [0.8, 2.6] }, { ...HERBES, densite: 120 }],
+  "foret-sombre": [
+    arbres("arbre-sorciere", 3, 36),
+    { ...BUISSONS, densite: 14, bosquets: undefined },
+    { ...CHAMPIGNONS, densite: 20 },
+    { ...HERBES, densite: 60 },
+    { ...BOIS_MORT, densite: 3 },
+    CAILLOUX,
+  ],
+  "pins-enneiges": [
+    arbres("pin-enneige", 5, 30, "dans"),
+    isoles("pin-enneige", 5, 5),
+    { ...BUISSONS_EPARS, densite: 3 },
+    { ...BOIS_MORT, densite: 1 },
+    { ...ROCHERS_EPARS, densite: 4, variantes: variantes("rocher-glace", 3) },
+    { ...CAILLOUX, variantes: variantes("rocher-glace", 3) },
+  ],
+  "arbres-morts": [
+    { ...arbres("arbre-mort", 2, 9, "dans"), echelle: [0.7, 1.2] },
+    { ...isoles("arbre-mort", 2, 2), echelle: [0.6, 1.1] },
+    { ...BOIS_MORT, densite: 4 },
+    { ...ROCHERS_EPARS, densite: 3 },
+    { ...BUISSONS_EPARS, densite: 3 },
+    { ...HERBES, densite: 70 },
+    { ...TRACES, densite: 0.8, variantes: ["cloture", "cloture", "tronc", "souche", "tonneau", "caisse"] },
+    CAILLOUX,
+  ],
+  rochers: [
+    { ...ROCHERS_EPARS, densite: 9, echelle: [0.8, 2.8] },
+    { ...HERBES, densite: 200 },
+    { ...BUISSONS, densite: 16 },
+    { ...BUISSONS_EPARS, densite: 8 },
+    { ...FLEURS, densite: 30 },
+    { ...arbres("arbre-dore", 6, 5, "dans"), penteMax: 0.8 },
+    { ...isoles("arbre-dore", 6, 2.5), penteMax: 0.8 },
+    { ...TRACES, densite: 0.5 },
+    CAILLOUX,
+  ],
 };
 
 /** Bruit des bosquets (0 à 1) : au-dessus de 0,5 un bosquet, en dessous une clairière. Taches d'environ 140 m. */
@@ -284,7 +346,8 @@ function Vegetation() {
         if (LEGER && PETITES.has(s.forme)) continue;
         // En bosquets, on tire 2,5 fois plus de candidats : environ 40 % tombent dans un bosquet.
         // Des instances : même par dizaines de milliers, elles coûtent peu.
-        const n = Math.min(80000, Math.round(liste.length * hectares * s.densite * (s.bosquets ? 2.5 : 1)));
+        // Sur téléphone (mode léger), un peu moins de tout.
+        const n = Math.min(80000, Math.round(liste.length * hectares * s.densite * (s.bosquets ? 2.5 : 1) * (LEGER ? 0.6 : 1)));
         for (let k = 0; k < n; k++) {
           const [cx, cz] = centreCellule(liste[Math.floor(hasard() * liste.length)]);
           const x = cx + (hasard() - 0.5) * c.pas;
