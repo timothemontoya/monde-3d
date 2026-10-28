@@ -263,7 +263,7 @@ export const REGIONS: Region[] = [
     sousTitre: "Une beauté qui inquiète",
     relief: { altitude: 8, amplitude: 9, montagne: 0.15 },
     ambiance: { brume: "#e6b8d8", densite: 0.0018, lumiere: "#ffd6e8", ciel: "#ffe0f0", sol: "#5a3a4a" },
-    vegetation: "foret-doree",
+    vegetation: "landes-roses",
     sol: ["#b07a92", "#8a6a74"],
     lore: [{ texte: "Des landes où l'herbe et les feuilles virent au rose. Les habitants disent que c'est nouveau." }],
   },
@@ -707,7 +707,7 @@ export const VILLAGES: Village[] = [
     centre: [1362, 476],
     rayon: 30,
     nombre: 9,
-    modeles: ["cabane-peche-2", "maison-atlante-1", "maison-atlante-3", "hutte-sorciere-2"],
+    modeles: ["maison-bois-1", "maison-bois-2", "maison-bois-3"],
     substitut: { murs: "#d8e4ec", toit: "#3a78b0", taille: [6, 6, 6.4] },
     disposition: { type: "place", anneaux: 1 },
     jardins: 0.5,
@@ -743,6 +743,17 @@ export const VILLAGES: Village[] = [
     substitut: { murs: "#8a857c", toit: "#6b625a", taille: [6.3, 3, 6.3] },
     disposition: { type: "place", anneaux: 2, rues: [[140, 150], [139, 196]] },
     plateau: false,
+  },
+  {
+    // Un hameau de bergers dans les Landes roses.
+    id: "hameau-landes",
+    centre: [1340, 628],
+    rayon: 30,
+    nombre: 4,
+    modeles: ["chaumiere-1", "chaumiere-2"],
+    substitut: { murs: "#ece3d0", toit: "#a8402f", taille: [8, 6.6, 6.4] },
+    disposition: { type: "place", anneaux: 1 },
+    jardins: 0.5,
   },
   {
     // Le bourg d'Elcres abandonnée : une rue qui monte vers la chapelle, autour d'une fontaine tarie.
@@ -795,6 +806,11 @@ export const DECORS: DecorUnique[] = [
   { modele: "banniere-vent", position: [854, 790], angle: 338 },
   { modele: "banniere-vent", position: [866, 790], angle: 22 },
   { modele: "banniere-vent", position: [875, 799], angle: 68 },
+  // Landes roses : le phare sur le cap, des bottes de foin, une charrette.
+  { modele: "phare", position: [1405, 620], angle: 180, plateforme: 5, solide: [4, 16, 4] },
+  { modele: "charrette", position: [1352, 636], angle: 200 },
+  { modele: "botte-foin", position: [1330, 620] },
+  { modele: "botte-foin", position: [1331, 622] },
   // Elcres abandonnée : la fontaine tarie, la chapelle au bout de la rue, ce qu'on a laissé.
   { modele: "fontaine", position: [1144, 210], plateforme: 6, solide: [6, 1.5, 6] },
   { modele: "chapelle-elcres", position: [1151, 172], angle: 90, plateforme: 11, solide: [12, 10, 6.4] },

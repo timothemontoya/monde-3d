@@ -23,7 +23,7 @@ const RECALCUL = 10;
 const MAX_BRINS = Math.ceil((Math.PI * RAYON * RAYON) / (ECART * ECART));
 
 /** Régions où l'herbe pousse (pas sur la neige, la cendre ni la pierre nue). */
-const HERBEUSES = new Set(REGIONS.map((r, i) => (["foret-doree", "foret-sombre", "rochers"].includes(r.vegetation) && r.id !== "glace" ? i : -1)));
+const HERBEUSES = new Set(REGIONS.map((r, i) => (["foret-doree", "landes-roses", "foret-sombre", "rochers"].includes(r.vegetation) && r.id !== "glace" ? i : -1)));
 
 /** Brin : une lame effilée en trois étages, de 0 à 1 en hauteur (la courbure suit la hauteur). */
 function geometrieBrin() {

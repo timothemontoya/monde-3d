@@ -50,6 +50,10 @@ function lesFormes() {
       { geometrie: tronc, materiau: mat("#4a3b2a") },
       { geometrie: boule, materiau: mat("#c9952f", true) },
     ],
+    "arbre-rose": [
+      { geometrie: tronc, materiau: mat("#4a3b2a") },
+      { geometrie: boule, materiau: mat("#e99ab8", true) },
+    ],
     "arbre-vert": [
       { geometrie: tronc, materiau: mat("#4a3b2a") },
       { geometrie: boule, materiau: mat("#5f9a3a", true) },
@@ -168,8 +172,18 @@ const PETITES = new Set(["herbe", "fleur"]);
 
 const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
   "foret-doree": [arbres("arbre-dore", 6, 5, "dans"), BUISSONS, HERBES, FLEURS, BOIS_MORT, TRACES],
+  // Landes roses : arbres en fleurs épars, beaucoup de fleurs, des rochers.
+  "landes-roses": [arbres("arbre-rose", 3, 4, "dans"), BUISSONS, { ...HERBES, densite: 200 }, { ...FLEURS, densite: 70 }, TRACES, { ...BOIS_MORT, densite: 0.4 }],
   // Le Bois perdu : une forêt serrée, qu'on ne traverse qu'en suivant les chemins.
-  "foret-verte": [{ ...arbres("arbre-vert", 4, 140), penteMax: 0.9, echelle: [0.8, 1.5] }, { ...BUISSONS, densite: 14, bosquets: undefined }, { ...HERBES, densite: 150 }, CHAMPIGNONS, BOIS_MORT],
+  "foret-verte": [
+    { ...arbres("arbre-vert", 4, 140), penteMax: 0.9, echelle: [0.8, 1.5] },
+    { ...BUISSONS, densite: 14, bosquets: undefined },
+    { ...HERBES, densite: 150 },
+    CHAMPIGNONS,
+    { ...BOIS_MORT, densite: 3 },
+    // De vieilles pierres moussues, comme des bornes oubliées.
+    { ...TRACES, densite: 1.2, variantes: ["stele-moussue", "stele-moussue", "tronc", "souche"], bosquets: undefined },
+  ],
   "foret-sombre": [arbres("arbre-sorciere", 3, 25), { ...BUISSONS, densite: 8, bosquets: undefined }, CHAMPIGNONS, { ...HERBES, densite: 30 }, BOIS_MORT],
   "pins-enneiges": [arbres("pin-enneige", 5, 14, "dans"), { ...BOIS_MORT, densite: 0.5 }, { ...ROCHERS_EPARS, densite: 2.5, variantes: variantes("rocher-glace", 3) }],
   "arbres-morts": [{ ...arbres("arbre-mort", 2, 4, "dans"), echelle: [0.7, 1.2] }, { ...BOIS_MORT, densite: 2 }, { ...ROCHERS_EPARS, densite: 1.5 }],
@@ -631,6 +645,18 @@ function Fracture() {
       if (t < 0.25 && r() < 0.8) continue;
       const [dx, dz] = d > 0 ? [(x - cx) / d, (z - cz) / d] : [1, 0];
       amas(x, z, 5 + 58 * Math.pow(t, 1.4) * (0.7 + r() * 0.5), 0.05 + 0.45 * t, dx, dz);
+    }
+    // Plus loin, la fracture a semé de petits cristaux : nombreux sur les Terres rougies, rares sur les Landes roses.
+    for (const [id, nombre, taille] of [["terres-rougies", 220, 3.2], ["landes-roses", 60, 1.4]] as const) {
+      const ri2 = REGIONS.findIndex((x) => x.id === id);
+      const liste: number[] = [];
+      for (let i = 0; i < c.region.length; i++) if (c.region[i] === ri2) liste.push(i);
+      for (let k = 0; k < nombre && liste.length; k++) {
+        const [x, z] = centreCellule(liste[Math.floor(r() * liste.length)]);
+        if (hauteurTerrain(x, z) < 1.5) continue;
+        const a = r() * Math.PI * 2;
+        amas(x, z, taille * (0.4 + r() * 0.8), 0.15 + r() * 0.35, Math.cos(a), Math.sin(a));
+      }
     }
     return { matrices, halos };
   }, []);

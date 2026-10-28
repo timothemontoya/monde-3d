@@ -229,7 +229,7 @@ function peindreVeines(t: Toile) {
     const liste = cellules(id);
     for (let k = 0; k < nombre && liste.length; k++) {
       const [x, z] = centreCellule(liste[Math.floor(hasard() * liste.length)]);
-      peindreVeine(t, x, z, hasard() * Math.PI * 2, longueur * (0.5 + hasard()), 0.7, hasard, 1);
+      peindreVeine(t, x, z, hasard() * Math.PI * 2, longueur * (0.5 + hasard()), 0.45, hasard, 1);
     }
   }
 }

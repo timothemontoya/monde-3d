@@ -297,6 +297,8 @@ const GARNITURES: Record<string, string[]> = {
   "bourg-egares": ["tonneau", "caisse", "botte-foin", "seau", "coffre", "buisson-1", "citrouille"],
   "hameau-pecheurs": ["tonneau", "caisse", "seau", "botte-foin", "barque-rames"],
   "forge-sous-cendre": ["tonneau", "caisse", "brasero", "enclume"],
+  "hameau-landes": ["botte-foin", "tonneau", "seau", "buisson-1", "cloture"],
+  "village-du-bois": ["tonneau", "seau", "buisson-1", "buisson-2", "lanterne"],
   "bourg-elcres": ["tonneau", "caisse", "seau", "souche", "buisson-2"],
 };
 /** Emplacements autour d'une maison, dans son repère (en fractions de largeur l et de profondeur p, + un écart en m). */

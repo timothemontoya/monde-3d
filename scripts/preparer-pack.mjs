@@ -192,6 +192,12 @@ function moulin() {
   return pieces;
 }
 
+/** Phare (Castle Kit) : une tour hexagonale élancée, coiffée d'un toit. */
+function phare() {
+  const p = (piece, y) => ({ source: `castle:${piece}`, pos: [0, y, 0], rot: 0, echelle: [1, 1, 1] });
+  return [p("tower-hexagon-base", 0), p("tower-hexagon-mid", 1.31), p("tower-hexagon-mid", 1.77), p("tower-hexagon-mid", 2.23), p("tower-hexagon-mid", 2.69), p("tower-hexagon-roof", 3.15)];
+}
+
 /** Elcres abandonnée : enduit gris pâle, bois grisé, pierre froide. */
 const PALETTE_ELCRES = {
   "#cf534f": "#cfcabb",
@@ -347,6 +353,17 @@ const RECETTES = {
     echelle: TUILE,
     palette: PALETTE_ELCRES,
   },
+  // Landes roses : arbres en fleurs, chaumières de bergers, un phare sur le cap.
+  "arbre-rose-1": { sources: ["nature:tree_default_fall"], hauteur: 8, couleurs: { leafsFall: "#f2a6c4", woodBirch: "#6b4a3e" } },
+  "arbre-rose-2": { sources: ["nature:tree_detailed_fall"], hauteur: 8, couleurs: { leafsFall: "#e990b8", woodBirch: "#6b4a3e" } },
+  "arbre-rose-3": { sources: ["nature:tree_oak_fall"], hauteur: 7, couleurs: { leafsFall: "#f6bcd2", woodBirch: "#6b4a3e" } },
+  "chaumiere-1": { pieces: maison({ largeur: 3, etages: 1, bas: "wall", couleurToit: "#a8402f" }), echelle: TUILE, palette: PALETTE_VILLAGE },
+  "chaumiere-2": { pieces: maison({ largeur: 2, etages: 1, bas: "wall", couleurToit: "#d2a95a" }), echelle: TUILE, palette: PALETTE_VILLAGE },
+  phare: { pieces: phare(), echelle: 4, couleurs: { colormap: "#f0ebe0" } },
+  // Village du Bois : pierre claire, toits bleus et turquoise.
+  "maison-bois-1": { pieces: maison({ largeur: 3, etages: 1, bas: "wall", couleurToit: "#3a6fb0" }), echelle: TUILE, palette: PALETTE_VILLAGE },
+  "maison-bois-2": { pieces: maison({ largeur: 2, etages: 1, bas: "wall", fenetre: "-window-round", couleurToit: "#3fa3a0" }), echelle: TUILE, palette: PALETTE_VILLAGE },
+  "maison-bois-3": { pieces: maison({ largeur: 3, etages: 1, bas: "wall", toit: "roof", couleurToit: "#2f5c9a", cheminee: false }), echelle: TUILE, palette: PALETTE_VILLAGE },
   // Cité du vent : moulins sur les rochers, bannières claquant au vent.
   moulin: { pieces: moulin(), echelle: TUILE, couleurs: MURS_VENT },
   "banniere-vent": { sources: ["town:banner-red"], hauteur: 4.5, couleurs: { colormap: "#c9a050" } },

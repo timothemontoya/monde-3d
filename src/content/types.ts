@@ -43,7 +43,7 @@ export type Relief = {
   montagne: number;
 };
 
-export type Vegetation = "foret-doree" | "foret-verte" | "foret-sombre" | "pins-enneiges" | "arbres-morts" | "rochers" | "aucune";
+export type Vegetation = "foret-doree" | "landes-roses" | "foret-verte" | "foret-sombre" | "pins-enneiges" | "arbres-morts" | "rochers" | "aucune";
 
 /** Une région = une couleur de ta carte. */
 export type Region = {
