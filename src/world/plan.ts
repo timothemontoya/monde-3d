@@ -2,7 +2,7 @@ import { BARRIERES, CHEMINS, DECORS, ENIGMES, FEUX, INDICES, LIEUX, PONTS, PORTS
 import type { DecorUnique, Pont, Port, Px, Village } from "../content/types";
 import { centreCellule, indiceCellule, laCarte, MER, regionA, versMonde } from "./carte";
 import { rotationFace } from "./geometrie";
-import { segments, tracesAuSol } from "./zones";
+import { largeurChemin, segments, tracesAuSol } from "./zones";
 import { definirPlateformes, definirPonts, distanceSegment, graine, hauteurBrute, hauteurSol, NIVEAU_MER, type Plateforme, type PontPlace } from "./relief";
 
 /**
@@ -261,7 +261,7 @@ function emplacements(v: Village, cx: number, cz: number, hasard: () => number):
     const chemin = CHEMINS.find((c) => c.id === d.chemin);
     if (!chemin) throw new Error(`Village ${v.id} : chemin inconnu « ${d.chemin} ».`);
     // Assez loin pour passer le contrôle « pas de maison sur un chemin » (qui prend le plus grand côté).
-    const decalage = chemin.largeur / 2 + Math.max(l0, p0) / 2 + 1.5;
+    const decalage = largeurChemin(chemin) / 2 + Math.max(l0, p0) / 2 + 1.5;
     const pas = l0 + 3;
     const points: [number, number, number, number][] = [];
     for (const [ax, az, bx, bz] of segments(chemin.points)) {

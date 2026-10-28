@@ -235,8 +235,24 @@ vec3 couleurSol(vec3 pos, vec3 n) {
   // Chemins (au bord irrégulier, qui s'efface dans l'eau), lave et veines d'or.
   vec4 trace = texture2D(uTraces, uv);
   float lueur = texture2D(uLueurs, uv).r;
-  float tTrace = smoothstep(0.2, 0.55, trace.a + (moyennes - 0.5) * 0.3) * smoothstep(0.4, 1.2, pos.y);
-  c = mix(c, trace.rgb * (0.86 + 0.2 * grain + 0.08 * fin), tTrace);
+  float dessus = 1.0 - smoothstep(0.05, 0.3, lueur);
+  // Des îlots d'herbe au milieu du chemin, par endroits (pas sur la lave).
+  float ilots = smoothstep(0.66, 0.74, fbmSol(q.xz + 91.0, 1.0 / 5.0)) * 0.9 * dessus;
+  float bord = trace.a + (moyennes - 0.5) * 0.35 + (grain - 0.5) * 0.18 - ilots;
+  float tTrace = smoothstep(0.2, 0.5, bord) * smoothstep(0.4, 1.2, pos.y);
+  vec3 terre = trace.rgb * (0.82 + 0.26 * grain + 0.1 * fin);
+  // Taches de cailloux : des plaques de gravier clair, et des galets épars, plus nombreux par endroits.
+  float plaques = smoothstep(0.55, 0.7, fbmSol(q.xz + 37.0, 1.0 / 7.0));
+  vec2 g = q.xz * 3.0;
+  float bg = bruitSol(g, 2048.0 * 3.0);
+  float present = 0.3 + 0.7 * plaques;
+  float galet = smoothstep(0.66, 0.69, bg) * present;
+  float lisere = (smoothstep(0.6, 0.65, bg) - smoothstep(0.66, 0.69, bg)) * present;
+  vec3 pierre = vec3(0.62, 0.6, 0.55) * (0.78 + 0.4 * bruitSol(g * 2.0 + 5.0, 2048.0 * 6.0));
+  terre = mix(terre, mix(trace.rgb * 1.12, vec3(0.64, 0.61, 0.55), 0.5), plaques * 0.35 * dessus);
+  terre *= 1.0 - lisere * 0.35 * dessus;
+  terre = mix(terre, pierre, galet * dessus);
+  c = mix(c, terre, tTrace);
   // Sous ce qui brille, une croûte sombre : la lumière vient de l'émission (lueurSol).
   return mix(c, trace.rgb * 0.25, smoothstep(0.1, 0.6, lueur));
 }

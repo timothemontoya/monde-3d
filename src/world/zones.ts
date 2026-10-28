@@ -31,9 +31,12 @@ let traces: Trace[] | null = null;
 export const DEMI_EPAISSEUR_REMPART = 2.4;
 
 /** Chemins et remparts : rien ne pousse ni ne se construit dessus. */
+/** Largeur réelle d'un chemin dessiné, en m : un peu plus que sa largeur dans monde.ts (des chemins qu'on voit bien). */
+export const largeurChemin = (c: { largeur: number }) => c.largeur * 1.45;
+
 export function tracesAuSol(): Trace[] {
   traces ??= [
-    ...CHEMINS.flatMap((c) => segments(c.points).map((s) => ({ s, demi: c.largeur / 2 }))),
+    ...CHEMINS.flatMap((c) => segments(c.points).map((s) => ({ s, demi: largeurChemin(c) / 2 }))),
     ...REMPARTS.flatMap((r) => segments(r.zone, true).map((s) => ({ s, demi: DEMI_EPAISSEUR_REMPART }))),
   ];
   return traces;

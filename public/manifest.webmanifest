@@ -1,0 +1,13 @@
+{
+  "name": "L'Île sans nom",
+  "short_name": "L'Île sans nom",
+  "start_url": ".",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1a1510",
+  "theme_color": "#1a1510",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

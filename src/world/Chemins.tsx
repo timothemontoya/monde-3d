@@ -8,6 +8,8 @@ import { LEGER } from "../qualite";
 import { InstancesModele, matrice } from "./modeles";
 import { Halos, VERRE_LANTERNE } from "./Lueurs";
 import { graine, hauteurTerrain } from "./relief";
+import { largeurChemin } from "./zones";
+import { VILLAGES } from "../content/monde";
 
 /** Pas entre deux décors possibles le long d'un chemin, en m. */
 const PAS = 2;
@@ -32,7 +34,8 @@ const terreIci = (x: number, z: number) => {
 
 const bruitLargeur = createNoise2D(graine(57));
 /** Le chemin s'élargit et se resserre doucement. */
-const largeurA = (c: Chemin, s: number) => c.largeur * (0.8 + 0.35 * bruitLargeur(s / 25, c.largeur));
+const largeurA = (c: Chemin, s: number) =>
+  largeurChemin(c) * (0.85 + 0.25 * bruitLargeur(s / 25, c.largeur) + 0.12 * bruitLargeur(s / 6, c.largeur + 7));
 
 /** Arrondit un tracé à main levée (algorithme de Chaikin). */
 function lisser(points: [number, number][], passes = 2) {
@@ -66,6 +69,10 @@ function reechantillonner(p: [number, number][]) {
   return sortie;
 }
 
+const centresVillages = () => VILLAGES.map((v) => ({ c: versMonde(v.centre), r: v.rayon + 10 }));
+let villages: ReturnType<typeof centresVillages> | null = null;
+const dansVillage = (x: number, z: number) => (villages ??= centresVillages()).some((v) => Math.hypot(x - v.c[0], z - v.c[1]) < v.r);
+
 type Bord = { x: number; y: number; z: number; rot: number; e: number };
 
 /** Ce qui borde le chemin : pierres, clôtures, buissons, lanternes. */
@@ -94,10 +101,13 @@ function construire(c: Chemin, hasard: () => number) {
       const y = hauteurTerrain(px, pz);
       if (y > 0.9) pierres.push({ x: px, y: y - 0.1, z: pz, rot: hasard() * Math.PI * 2, e: 0.15 + hasard() * 0.15 });
     }
-    if (c.clotures && s <= c.clotures) {
+    // Clôtures : serrées le long des chemins qui en ont (`clotures`), par-ci par-là sur les autres (hors villages et lave).
+    const clos = c.clotures ? s <= c.clotures : c.matiere !== "lave" && !dansVillage(x, z);
+    if (clos) {
       if (s >= troncon.prochain) {
-        const longueur = (3 + Math.floor(hasard() * 3)) * CLOTURE;
-        troncon = { fin: s + longueur, prochain: s + longueur + 10 + hasard() * 20, cote: hasard() < 0.5 ? -1 : 1 };
+        const longueur = (3 + Math.floor(hasard() * (c.clotures ? 3 : 5))) * CLOTURE;
+        const trouee = c.clotures ? 10 + hasard() * 20 : 40 + hasard() * 90;
+        troncon = { fin: s + longueur, prochain: s + longueur + trouee, cote: hasard() < 0.5 ? -1 : 1 };
       }
       if (s < troncon.fin && s % CLOTURE < PAS) {
         const [fx, fz] = [x + nx * troncon.cote * (largeur / 2 + 1.6), z + nz * troncon.cote * (largeur / 2 + 1.6)];
