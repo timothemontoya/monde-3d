@@ -50,6 +50,16 @@ const SAUT = 8;
 const DOUBLE_APPUI = 300;
 /** Pente à partir de laquelle on ralentit (le maximum franchissable est REGLAGES.penteMax). */
 const PENTE_LENTE = 0.5;
+/** Prise au sol (1/s) : plus c'est grand, plus on démarre et on s'arrête vite. En l'air, on garde son élan. */
+const PRISE_SOL = 10;
+const PRISE_AIR = 2;
+const PRISE_VOL = 4;
+/** Balancement de la tête à chaque pas, en m (marche, course), et cadence des pas (pas par seconde). */
+const BALANCEMENT: [number, number] = [0.05, 0.08];
+const CADENCE = (v: number) => 1.5 + 0.085 * v;
+/** Champ de vision (degrés) à l'arrêt, et en plus quand on court. */
+const FOV = 70;
+const FOV_COURSE = 6;
 
 const IDS_REGIONS = REGIONS.map((r) => r.id);
 /** Zone d'un lac (pour les frontières, les lacs ne sont pas « la mer »). */
@@ -99,6 +109,10 @@ export function Joueur() {
   const auSol = useRef(true);
   const espace = useRef({ avant: false, dernier: 0 });
   const camY = useRef(depart.y);
+  /** Vitesse horizontale (m/s), qui suit la vitesse voulue avec un peu d'inertie. */
+  const elan = useRef(new THREE.Vector2());
+  /** Pas : phase (un pas tous les π), amplitude (0 à l'arrêt, 1 en marche), tassement à l'atterrissage (m). */
+  const foulee = useRef({ phase: 0, amplitude: 0, tassement: 0 });
 
   // Contrôleur de personnage : glisse le long des murs. Créé dans un effet pour survivre
   // au double montage de React en développement.
@@ -135,6 +149,7 @@ export function Joueur() {
       corps.current?.setNextKinematicTranslation({ x, y, z });
       vy.current = 0;
       camY.current = y;
+      elan.current.set(0, 0);
       voler(false);
     };
     // Outils de test, en développement seulement (console du navigateur).
@@ -257,8 +272,15 @@ export function Joueur() {
         const pente = penteDevant(pos.x, pos.z, mouvement.x, mouvement.z);
         vitesse *= 1 - 0.55 * THREE.MathUtils.smoothstep(pente, PENTE_LENTE, REGLAGES.penteMax);
       }
-      mouvement.multiplyScalar(vitesse * dt);
+      mouvement.multiplyScalar(vitesse);
     }
+    // Inertie : la vitesse rejoint en douceur celle qu'on veut (démarrage, arrêt, virage) ; en l'air on garde son élan.
+    const e = elan.current;
+    const prise = 1 - Math.exp(-dt * (vol.current ? PRISE_VOL : auSol.current ? PRISE_SOL : PRISE_AIR));
+    e.x += (mouvement.x - e.x) * prise;
+    e.y += (mouvement.z - e.y) * prise;
+    if (e.lengthSq() < 0.0004) e.set(0, 0);
+    mouvement.set(e.x * dt, 0, e.y * dt);
 
     // Règles du monde : on essaie le pas complet, puis chaque axe seul (pour glisser le long).
     let bloque: string | null = null;
@@ -280,6 +302,9 @@ export function Joueur() {
       }
       mouvement.x = choisi[0];
       mouvement.z = choisi[1];
+      // Bloqué dans une direction : on y perd son élan (pas de « poussée » accumulée contre un mur).
+      if (!choisi[0]) e.x = 0;
+      if (!choisi[1]) e.y = 0;
     }
 
     // Vertical : plancher (le sol) et plafond (vol limité), à l'endroit où l'on va.
@@ -307,6 +332,8 @@ export function Joueur() {
       y += vy.current * dt;
       const pas = Math.hypot(mouvement.x, mouvement.z);
       if (y <= yMin) {
+        // Atterrissage : la vue se tasse un peu, d'autant plus que la chute était rapide.
+        if (!auSol.current) foulee.current.tassement = Math.min(0.45, Math.max(0, -vy.current - 3) * 0.035);
         y = yMin;
         vy.current = 0;
         auSol.current = true;
@@ -342,7 +369,29 @@ export function Joueur() {
     camY.current += (suivant.y - camY.current) * (1 - Math.exp(-dt * 18));
     camY.current = Math.max(camY.current, sol(suivant.x, suivant.z) + 1.2);
     // Léger recul de la caméra pour éviter le clipping dans les parois (avant déjà calculé ligne ~220).
-    camera.position.set(suivant.x - avant.x * 0.2, camY.current, suivant.z - avant.z * 0.2);
+    // Pas : la tête monte et descend à chaque pas, et se balance un peu d'un côté à l'autre.
+    const p = foulee.current;
+    const v = Math.hypot(corrige.x, corrige.z) / dt;
+    const marche = auSol.current && !vol.current ? Math.min(1, v / REGLAGES.vitesse) : 0;
+    p.amplitude += (marche - p.amplitude) * (1 - Math.exp(-dt * 6));
+    p.phase += dt * CADENCE(v) * Math.PI * (marche > 0.05 ? 1 : 0);
+    const course = THREE.MathUtils.smoothstep(v, REGLAGES.vitesse, REGLAGES.vitesseRapide);
+    const a = p.amplitude * THREE.MathUtils.lerp(BALANCEMENT[0], BALANCEMENT[1], course);
+    const haut = (Math.abs(Math.sin(p.phase)) - 0.6) * a;
+    const cote = Math.sin(p.phase) * a * 0.45;
+    p.tassement *= Math.exp(-dt * 7);
+    camera.position.set(
+      suivant.x - avant.x * 0.2 + droite.x * cote,
+      camY.current + haut - p.tassement,
+      suivant.z - avant.z * 0.2 + droite.z * cote,
+    );
+    // En courant, le champ de vision s'ouvre un peu : une impression de vitesse.
+    const cam = camera as THREE.PerspectiveCamera;
+    const fov = FOV + FOV_COURSE * course * (auSol.current || vol.current ? 1 : 0.6);
+    if (Math.abs(cam.fov - fov) > 0.01) {
+      cam.fov += (fov - cam.fov) * (1 - Math.exp(-dt * 4));
+      cam.updateProjectionMatrix();
+    }
     positionJoueur.x = suivant.x;
     positionJoueur.z = suivant.z;
     positionJoueur.cap = Math.atan2(avant.z, avant.x);

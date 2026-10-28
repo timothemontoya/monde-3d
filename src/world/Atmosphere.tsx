@@ -14,6 +14,12 @@ const RESOLUTION_OMBRE = 2048;
 const DROITE_SOLEIL = new THREE.Vector3(0, 1, 0).cross(SOLEIL).normalize();
 const HAUT_SOLEIL = SOLEIL.clone().cross(DROITE_SOLEIL).normalize();
 const TEXEL = (OMBRE * 2) / RESOLUTION_OMBRE;
+/**
+ * La zone d'ombre avance par bonds de ~10 m (un nombre entier de texels) : la carte d'ombres n'est
+ * recalculée qu'à chaque bond (le décor ne bouge pas), et de temps en temps pour ce qui bouge.
+ */
+const BOND = Math.round(10 / TEXEL) * TEXEL;
+const RAFRAICHIR = 30;
 
 /** Ambiance en mer et hors des régions. */
 const AMBIANCE_HORS_ZONE = { brume: "#c9b796", densite: 0.0016, lumiere: "#ffd49a", ciel: "#ffe2b8", sol: "#5a5038" };
@@ -69,6 +75,8 @@ export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
   const zone = useJeu((s) => s.regionActuelle);
   const materiau = useMemo(() => materiauCiel(), []);
   const cale = useMemo(() => new THREE.Vector3(), []);
+  const dernierBond = useRef([NaN, NaN, NaN]);
+  const images = useRef(0);
 
   const brume = useMemo(() => new THREE.FogExp2(AMBIANCE_HORS_ZONE.brume, AMBIANCE_HORS_ZONE.densite), []);
   // La scène doit garder CE brouillard-là (celui que l'on fait varier) : pas d'effet de bord dans useMemo,
@@ -106,9 +114,16 @@ export function Atmosphere({ sansBrume = false }: { sansBrume?: boolean }) {
       soleil.current.color.lerp(cible.lumiere, k);
       materiau.uniforms.uSoleil.value.copy(soleil.current.color);
       // L'ombre suit le joueur : seule une zone autour de lui est calculée, calée sur la grille des texels.
-      const d = Math.round(cam.dot(DROITE_SOLEIL) / TEXEL) * TEXEL;
-      const h = Math.round(cam.dot(HAUT_SOLEIL) / TEXEL) * TEXEL;
-      cale.copy(DROITE_SOLEIL).multiplyScalar(d).addScaledVector(HAUT_SOLEIL, h).addScaledVector(SOLEIL, cam.dot(SOLEIL));
+      const d = Math.round(cam.dot(DROITE_SOLEIL) / BOND) * BOND;
+      const h = Math.round(cam.dot(HAUT_SOLEIL) / BOND) * BOND;
+      const p = Math.round(cam.dot(SOLEIL) / BOND) * BOND;
+      const ombres = state.gl.shadowMap;
+      ombres.autoUpdate = false;
+      if (d !== dernierBond.current[0] || h !== dernierBond.current[1] || p !== dernierBond.current[2] || ++images.current % RAFRAICHIR === 0) {
+        dernierBond.current = [d, h, p];
+        ombres.needsUpdate = true;
+      }
+      cale.copy(DROITE_SOLEIL).multiplyScalar(d).addScaledVector(HAUT_SOLEIL, h).addScaledVector(SOLEIL, p);
       soleil.current.position.copy(cale).addScaledVector(SOLEIL, 300);
       soleil.current.target.position.copy(cale);
       soleil.current.target.updateMatrixWorld();

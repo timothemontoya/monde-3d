@@ -1,6 +1,6 @@
 import { useGLTF } from "@react-three/drei";
-import type { ThreeElements } from "@react-three/fiber";
-import { Component, Suspense, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { useFrame, type ThreeElements } from "@react-three/fiber";
+import { Component, Suspense, useEffect, useMemo, type ReactNode } from "react";
 import * as THREE from "three";
 
 /**
@@ -32,13 +32,18 @@ class SiEchec extends Component<{ provisoire: ReactNode; children: ReactNode }, 
   }
 }
 
-/** Plusieurs exemplaires d'une même forme, dessinés en une seule fois. */
+/**
+ * Plusieurs exemplaires d'une même forme, dessinés en une seule fois par case de terrain : une case
+ * hors du champ de vision n'est pas dessinée (ni dans les ombres), une case plus loin que `portee`
+ * (m) non plus. Les cases sont d'autant plus grandes que la portée est longue (moins d'appels de dessin).
+ */
 export function Instances({
   geometrie,
   materiau,
   matrices,
   ombre = true,
   contour = true,
+  portee = Infinity,
 }: {
   geometrie: THREE.BufferGeometry;
   materiau: THREE.Material | THREE.Material[];
@@ -46,22 +51,51 @@ export function Instances({
   ombre?: boolean;
   /** Faux pour les petites plantes : elles n'écrivent pas la profondeur (dessinées après le reste), donc pas de trait d'encre autour de chaque brin. */
   contour?: boolean;
+  /** Distance au-delà de laquelle on ne dessine plus, en m. */
+  portee?: number;
 }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
   const mat = useMemo(() => {
     if (contour) return materiau;
     const sans = (m: THREE.Material) => Object.assign(m.clone(), { depthWrite: false });
     return Array.isArray(materiau) ? materiau.map(sans) : sans(materiau);
   }, [materiau, contour]);
-  useLayoutEffect(() => {
-    const m = ref.current;
-    if (!m) return;
-    matrices.forEach((mat, i) => m.setMatrixAt(i, mat));
-    m.instanceMatrix.needsUpdate = true;
-    m.computeBoundingSphere();
-  }, [matrices]);
-  if (!matrices.length) return null;
-  return <instancedMesh ref={ref} args={[geometrie, mat, matrices.length]} castShadow={ombre} receiveShadow renderOrder={contour ? 0 : 10} />;
+  const paquets = useMemo(() => {
+    const cote = THREE.MathUtils.clamp(portee / 3, 48, 384);
+    const cases = new Map<string, THREE.Matrix4[]>();
+    const p = new THREE.Vector3();
+    for (const m of matrices) {
+      p.setFromMatrixPosition(m);
+      const cle = `${Math.floor(p.x / cote)},${Math.floor(p.z / cote)}`;
+      const liste = cases.get(cle);
+      if (liste) liste.push(m);
+      else cases.set(cle, [m]);
+    }
+    return [...cases.values()].map((liste) => {
+      const im = new THREE.InstancedMesh(geometrie, mat, liste.length);
+      liste.forEach((m, i) => im.setMatrixAt(i, m));
+      im.instanceMatrix.needsUpdate = true;
+      im.computeBoundingSphere();
+      im.castShadow = ombre;
+      im.receiveShadow = true;
+      im.renderOrder = contour ? 0 : 10;
+      return im;
+    });
+  }, [matrices, geometrie, mat, ombre, contour, portee]);
+  useEffect(() => () => paquets.forEach((im) => im.dispose()), [paquets]);
+  useFrame(({ camera }) => {
+    if (portee === Infinity) return;
+    for (const im of paquets) {
+      const s = im.boundingSphere!;
+      im.visible = camera.position.distanceTo(s.center) - s.radius < portee;
+    }
+  });
+  return (
+    <>
+      {paquets.map((im, i) => (
+        <primitive key={i} object={im} />
+      ))}
+    </>
+  );
 }
 
 /** Copie de la scène du modèle, avec ombres. */
@@ -98,12 +132,12 @@ export function Modele({ modele, provisoire = null, ...props }: { modele: string
 type Morceau = { geometrie: THREE.BufferGeometry; materiau: THREE.Material | THREE.Material[]; local: THREE.Matrix4 };
 
 /** Un morceau (mesh) du modèle, répété à chaque position. */
-function InstancesMorceau({ morceau, matrices, ombre, contour }: { morceau: Morceau; matrices: THREE.Matrix4[]; ombre: boolean; contour: boolean }) {
+function InstancesMorceau({ morceau, matrices, ombre, contour, portee }: { morceau: Morceau; matrices: THREE.Matrix4[]; ombre: boolean; contour: boolean; portee: number }) {
   const finales = useMemo(() => matrices.map((m) => m.clone().multiply(morceau.local)), [matrices, morceau]);
-  return <Instances geometrie={morceau.geometrie} materiau={morceau.materiau} matrices={finales} ombre={ombre} contour={contour} />;
+  return <Instances geometrie={morceau.geometrie} materiau={morceau.materiau} matrices={finales} ombre={ombre} contour={contour} portee={portee} />;
 }
 
-function InstancesChargees({ url, matrices, ombre, contour }: { url: string; matrices: THREE.Matrix4[]; ombre: boolean; contour: boolean }) {
+function InstancesChargees({ url, matrices, ombre, contour, portee }: { url: string; matrices: THREE.Matrix4[]; ombre: boolean; contour: boolean; portee: number }) {
   const { scene } = useGLTF(url);
   const morceaux = useMemo(() => {
     scene.updateMatrixWorld(true);
@@ -117,7 +151,7 @@ function InstancesChargees({ url, matrices, ombre, contour }: { url: string; mat
   return (
     <>
       {morceaux.map((m, i) => (
-        <InstancesMorceau key={i} morceau={m} matrices={matrices} ombre={ombre} contour={contour} />
+        <InstancesMorceau key={i} morceau={m} matrices={matrices} ombre={ombre} contour={contour} portee={portee} />
       ))}
     </>
   );
@@ -131,12 +165,15 @@ export function InstancesModele({
   provisoire,
   ombre = true,
   contour = true,
+  portee = Infinity,
 }: {
   modele: string;
   matrices: THREE.Matrix4[];
   provisoire: ReactNode;
   ombre?: boolean;
   contour?: boolean;
+  /** Distance au-delà de laquelle on ne dessine plus, en m. */
+  portee?: number;
 }) {
   const url = URLS[modele];
   if (!matrices.length) return null;
@@ -144,7 +181,7 @@ export function InstancesModele({
   return (
     <SiEchec provisoire={provisoire}>
       <Suspense fallback={provisoire}>
-        <InstancesChargees url={url} matrices={matrices} ombre={ombre} contour={contour} />
+        <InstancesChargees url={url} matrices={matrices} ombre={ombre} contour={contour} portee={portee} />
       </Suspense>
     </SiEchec>
   );

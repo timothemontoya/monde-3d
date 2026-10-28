@@ -146,8 +146,8 @@ function Monde() {
         dpr={LEGER ? 1 : [1, 1.5]}
         camera={{ fov: 70, near: 0.15, far: 6000 }}
         gl={{ antialias: !LEGER, preserveDrawingBuffer: LEGER, toneMapping: LEGER && SANS_CONTOURS ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping }}
-        onCreated={({ scene }) => {
-          if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).scene = scene;
+        onCreated={({ scene, camera }) => {
+          if (import.meta.env.DEV) Object.assign(window, { scene, camera });
         }}
       >
         <Suspense fallback={null}>

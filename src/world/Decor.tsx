@@ -169,6 +169,9 @@ const FALAISES: Semis = {
 
 /** Formes des petites plantes : sans ombre portée, et absentes du mode léger. */
 const PETITES = new Set(["herbe", "fleur"]);
+/** Jusqu'où on dessine chaque forme, en m (au-delà, la brume l'aurait cachée ou on ne la distingue plus). */
+const PORTEES: Record<string, number> = { herbe: 90, fleur: 90, buisson: 320, souche: 200, rocher: 700 };
+const porteeDe = (forme: string, variante: string) => PORTEES[variante.startsWith("champignon") ? "fleur" : forme] ?? (LEGER ? 900 : 1300);
 
 /** Arbres isolés dans les clairières et les prés, entre les bosquets. */
 const isoles = (nom: string, n: number, densite: number): Semis => ({ ...arbres(nom, n, densite), bosquets: "hors", echelle: [0.7, 1.3] });
@@ -403,8 +406,9 @@ function Vegetation() {
           matrices={matrices}
           ombre={!PETITES.has(forme)}
           contour={!PETITES.has(forme)}
+          portee={porteeDe(forme, id)}
           provisoire={f[forme].map((m, i) => (
-            <Instances key={i} geometrie={m.geometrie} materiau={m.materiau} matrices={matrices} />
+            <Instances key={i} geometrie={m.geometrie} materiau={m.materiau} matrices={matrices} portee={porteeDe(forme, id)} />
           ))}
         />
       ))}
