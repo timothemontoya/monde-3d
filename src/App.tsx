@@ -21,6 +21,7 @@ import { Decor } from "./world/Decor";
 import { Objets } from "./world/Objets";
 import { lePlan, planifier } from "./world/plan";
 import { Eau, Terrain } from "./world/Terrain";
+import { Contours } from "./world/Contours";
 
 const PARAMS = new URLSearchParams(window.location.search);
 
@@ -29,6 +30,8 @@ const PARAMS = new URLSearchParams(window.location.search);
  * pour voir toute la carte d'un coup. Pas de joueur ni d'interface.
  */
 const VUE = PARAMS.get("vue");
+/** ?sanscontours : pas de traits à l'encre (et, en mode léger, pas de post-traitement du tout). */
+const SANS_CONTOURS = PARAMS.has("sanscontours");
 
 /** Caméra des vues aériennes : cadre tout le monde. */
 function CameraAerienne() {
@@ -101,6 +104,16 @@ function DisqueSoleil({ disque, pret }: { disque: RefObject<THREE.Mesh | null>; 
   );
 }
 
+/** Image allégée (téléphones) : seulement les contours à l'encre. */
+function ImageLegere() {
+  return (
+    <EffectComposer multisampling={0}>
+      <Contours />
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+    </EffectComposer>
+  );
+}
+
 /**
  * L'image finale : ombres de contact (N8AO), rayons de soleil dans la brume, lueurs, couleurs
  * réchauffées et un peu plus saturées, coins assombris : un rendu plus « peint ».
@@ -109,6 +122,7 @@ function Image({ soleil }: { soleil: THREE.Mesh | null }) {
   return (
     <EffectComposer>
       <N8AO aoRadius={2.5} intensity={2.2} distanceFalloff={1} halfRes color="#3a2a1a" />
+      {SANS_CONTOURS ? <></> : <Contours />}
       {soleil ? <GodRays sun={soleil} samples={40} density={0.92} decay={0.93} weight={0.35} exposure={0.45} clampMax={1} blur /> : <></>}
       <Bloom intensity={0.85} luminanceThreshold={0.72} luminanceSmoothing={0.3} mipmapBlur />
       <HueSaturation saturation={0.04} />
@@ -131,7 +145,7 @@ function Monde() {
         shadows={!LEGER}
         dpr={LEGER ? 1 : [1, 1.5]}
         camera={{ fov: 70, near: 0.15, far: 6000 }}
-        gl={{ antialias: !LEGER, preserveDrawingBuffer: LEGER, toneMapping: LEGER ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping }}
+        gl={{ antialias: !LEGER, preserveDrawingBuffer: LEGER, toneMapping: LEGER && SANS_CONTOURS ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping }}
         onCreated={({ scene }) => {
           if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).scene = scene;
         }}
@@ -150,6 +164,7 @@ function Monde() {
           </Physics>
           <ObjetEnMain />
           {/* Lumière dorée qui « bave » sur les zones brillantes, coins assombris : rendu cinéma. */}
+          {LEGER && !SANS_CONTOURS && <ImageLegere />}
           {!LEGER && (
             <>
               <DisqueSoleil disque={disque} pret={soleilPret} />

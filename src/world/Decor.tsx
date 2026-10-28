@@ -576,30 +576,78 @@ function PalaisGivre() {
 }
 
 /** La Fracture d'or : des cristaux d'or lumineux qui jaillissent de son île, qu'on voit de loin. */
+/** Un cristal : prisme à six pans terminé en pointe, base au sol (hauteur 1, rayon 1). */
+const CRISTAL = (() => {
+  const g = new THREE.LatheGeometry([new THREE.Vector2(0, -0.15), new THREE.Vector2(1, -0.15), new THREE.Vector2(1, 0.72), new THREE.Vector2(0, 1)], 6);
+  return g.toNonIndexed();
+})();
+
+/**
+ * La Fracture d'or : une couronne de cristaux. Bas et petits au centre (un creux), de plus en plus
+ * grands vers l'extérieur de l'étoile, penchés vers le dehors comme s'ils sortaient de terre.
+ */
 function Fracture() {
-  const cristaux = useMemo(() => {
+  const { matrices, halos } = useMemo(() => {
     const c = laCarte();
     const ri = REGIONS.findIndex((r) => r.id === "fracture-or");
-    if (ri < 0) return [];
     const cellules: number[] = [];
-    for (let i = 0; i < c.region.length; i++) if (c.region[i] === ri) cellules.push(i);
+    if (ri >= 0) for (let i = 0; i < c.region.length; i++) if (c.region[i] === ri) cellules.push(i);
+    if (!cellules.length) return { matrices: [], halos: [] };
+    const points = cellules.map(centreCellule);
+    const [cx, cz] = points.reduce(([a, b], [x, z]) => [a + x / points.length, b + z / points.length], [0, 0]);
+    // Jusqu'où va l'étoile dans chaque direction : on mesure la place de chaque cristal entre le centre (0) et la pointe (1).
+    const SECTEURS = 72;
+    const portee = new Array(SECTEURS).fill(1);
+    const secteur = (x: number, z: number) => Math.floor(((Math.atan2(z - cz, x - cx) / (Math.PI * 2) + 1) % 1) * SECTEURS);
+    for (const [x, z] of points) {
+      const k = secteur(x, z);
+      portee[k] = Math.max(portee[k], Math.hypot(x - cx, z - cz));
+    }
     const r = graine(97);
-    return Array.from({ length: Math.min(70, cellules.length) }, () => {
-      const [x, z] = centreCellule(cellules[Math.floor(r() * cellules.length)]);
-      const h = 8 + r() * 26;
-      return { x, z, y: hauteurTerrain(x, z), h, rx: (r() - 0.5) * 0.7, rz: (r() - 0.5) * 0.7 };
-    });
+    const matrices: THREE.Matrix4[] = [];
+    const halos: [number, number, number][] = [];
+    const haut = new THREE.Vector3(0, 1, 0);
+    const amas = (x: number, z: number, taille: number, penche: number, dx: number, dz: number) => {
+      const n = 3 + Math.floor(r() * 4);
+      for (let k = 0; k < n; k++) {
+        const h = taille * (k === 0 ? 1 : 0.35 + r() * 0.5);
+        const [ox, oz] = k === 0 ? [0, 0] : [(r() - 0.5) * taille * 0.35, (r() - 0.5) * taille * 0.35];
+        const [px, pz] = [x + ox, z + oz];
+        // Penché vers l'extérieur (axe perpendiculaire à la direction du centre), avec un peu de désordre.
+        const axe = new THREE.Vector3(dz, 0, -dx).normalize();
+        const q = new THREE.Quaternion().setFromAxisAngle(axe, penche + (r() - 0.5) * 0.5);
+        q.multiply(new THREE.Quaternion().setFromAxisAngle(haut, r() * Math.PI));
+        const rayon = h * (0.07 + r() * 0.04);
+        matrices.push(new THREE.Matrix4().compose(new THREE.Vector3(px, hauteurTerrain(px, pz) - 0.5, pz), q, new THREE.Vector3(rayon, h, rayon)));
+        if (k === 0 && h > 18) halos.push([px + dx * h * 0.3, hauteurTerrain(px, pz) + h * 0.7, pz + dz * h * 0.3]);
+      }
+    };
+    for (let k = 0; k < 110; k++) {
+      const [x, z] = points[Math.floor(r() * points.length)];
+      const d = Math.hypot(x - cx, z - cz);
+      const t = Math.min(1, d / portee[secteur(x, z)]);
+      // Le centre reste presque vide.
+      if (t < 0.25 && r() < 0.8) continue;
+      const [dx, dz] = d > 0 ? [(x - cx) / d, (z - cz) / d] : [1, 0];
+      amas(x, z, 5 + 58 * Math.pow(t, 1.4) * (0.7 + r() * 0.5), 0.05 + 0.45 * t, dx, dz);
+    }
+    return { matrices, halos };
   }, []);
-  const or = useMemo(() => new THREE.MeshStandardMaterial({ color: "#ffd24a", emissive: "#ffb000", emissiveIntensity: 1.6, roughness: 0.3, flatShading: true }), []);
-  const halos = useMemo(() => cristaux.map((k) => [k.x, k.y + k.h * 0.6, k.z] as [number, number, number]), [cristaux]);
+  const or = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: "#f2b632", emissive: "#ff9a00", emissiveIntensity: 0.45, roughness: 0.3, metalness: 0.2, flatShading: true }),
+    [],
+  );
+  const maillage = useMemo(() => {
+    const m = new THREE.InstancedMesh(CRISTAL, or, Math.max(1, matrices.length));
+    matrices.forEach((x, i) => m.setMatrixAt(i, x));
+    m.count = matrices.length;
+    m.computeBoundingSphere();
+    return m;
+  }, [matrices, or]);
   return (
     <>
-      {cristaux.map((k, i) => (
-        <mesh key={i} material={or} position={[k.x, k.y + k.h / 2 - 1, k.z]} rotation={[k.rx, 0, k.rz]}>
-          <coneGeometry args={[1.5 + k.h * 0.08, k.h, 5]} />
-        </mesh>
-      ))}
-      <Halos positions={halos} couleur="#ffc84a" taille={10} />
+      <primitive object={maillage} />
+      <Halos positions={halos} couleur="#ffc84a" taille={12} />
     </>
   );
 }

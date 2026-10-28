@@ -5,6 +5,7 @@ import { VILLAGES } from "../content/monde";
 import { bornes, laCarte, versMonde } from "./carte";
 import { FOND_MARIN, NEIGE, SABLE, texturesSol } from "./couleurs";
 import { SOLEIL } from "./Atmosphere";
+import { texturesTraces } from "./Chemins";
 import { hauteurTerrain, NIVEAU_MER } from "./relief";
 
 /**
@@ -131,6 +132,10 @@ uniform vec3 uFond;
 uniform vec3 uNeige;
 // Places des villages en terre battue : (x, z, rayon) en m.
 uniform vec3 uPlaces[${MAX_PLACES}];
+// Chemins, lave et veines peints dans le sol (Chemins.tsx) : couleur + présence, et ce qui brille.
+uniform sampler2D uTraces;
+uniform sampler2D uLueurs;
+uniform float uTemps;
 varying vec3 vPosMonde;
 varying vec3 vNormaleMonde;
 
@@ -225,7 +230,28 @@ vec3 couleurSol(vec3 pos, vec3 n) {
   c = mix(c, uFond, 1.0 - smoothstep(-6.0, -0.5, pos.y));
   // Neige sur les hauteurs, pas sur les parois.
   float tNeige = smoothstep(95.0, 125.0, pos.y + (grandes - 0.5) * 20.0) * (1.0 - smoothstep(0.35, 0.6, pente)) * texHerbe.a;
-  return mix(c, uNeige, tNeige);
+  c = mix(c, uNeige, tNeige);
+
+  // Chemins (au bord irrégulier, qui s'efface dans l'eau), lave et veines d'or.
+  vec4 trace = texture2D(uTraces, uv);
+  float lueur = texture2D(uLueurs, uv).r;
+  float tTrace = smoothstep(0.2, 0.55, trace.a + (moyennes - 0.5) * 0.3) * smoothstep(0.4, 1.2, pos.y);
+  c = mix(c, trace.rgb * (0.86 + 0.2 * grain + 0.08 * fin), tTrace);
+  // Sous ce qui brille, une croûte sombre : la lumière vient de l'émission (lueurSol).
+  return mix(c, trace.rgb * 0.25, smoothstep(0.1, 0.6, lueur));
+}
+
+// Lave et veines : une lumière qui coule (taches claires qui glissent) et pulse doucement.
+vec3 lueurSol(vec3 pos) {
+  vec2 uv = pos.xz / uTaille + 0.5;
+  float g = smoothstep(0.1, 0.7, texture2D(uLueurs, uv).r);
+  if (g <= 0.0) return vec3(0.0);
+  vec3 couleur = texture2D(uTraces, uv).rgb;
+  vec2 q = mod(pos.xz + 4096.0, 2048.0);
+  float t = mod(uTemps, 2048.0);
+  float coule = fbmSol(q + vec2(t * 1.6, t * 0.9), 1.0 / 4.0);
+  float pulse = 0.8 + 0.2 * sin(uTemps * 1.4 + q.x * 0.04 + q.y * 0.03);
+  return couleur * g * (0.7 + 1.6 * smoothstep(0.3, 0.75, coule)) * pulse * 1.6;
 }
 `;
 
@@ -241,6 +267,9 @@ function materiauTerrain() {
     uFond: { value: new THREE.Color(FOND_MARIN) },
     uNeige: { value: new THREE.Color(NEIGE) },
     uPlaces: { value: placesVillages() },
+    uTraces: { value: texturesTraces().couleur },
+    uLueurs: { value: texturesTraces().lueur },
+    uTemps: { value: 0 },
   };
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -253,6 +282,7 @@ function materiauTerrain() {
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>\n${GLSL_SOL}`)
       .replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb = couleurSol(vPosMonde, normalize(vNormaleMonde));")
+      .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += lueurSol(vPosMonde);")
       // La normale (en repère caméra) penche selon le petit relief, d'autant moins qu'on est loin.
       .replace(
         "#include <normal_fragment_begin>",
@@ -260,7 +290,8 @@ function materiauTerrain() {
         "#include <normal_fragment_begin>\nnormal = normalize(normal - (viewMatrix * vec4(bosselage(vPosMonde), 0.0)).xyz * 1.2 * smoothstep(0.75, 0.95, vNormaleMonde.y) * (1.0 - smoothstep(60.0, 220.0, length(vPosMonde - cameraPosition))));",
       );
   };
-  m.customProgramCacheKey = () => "terrain-v2";
+  m.customProgramCacheKey = () => "terrain-v3";
+  m.userData.uniforms = uniforms;
   return m;
 }
 
@@ -325,7 +356,8 @@ export function Terrain({ pasFixe, depart }: { pasFixe?: number; depart?: [numbe
 
   useEffect(() => () => tuiles.forEach((t) => t.mesh.geometry.dispose()), [tuiles]);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
+    materiau.userData.uniforms.uTemps.value = clock.elapsedTime;
     if (pasFixe) return;
     const { x, z } = camera.position;
     const debut = performance.now();

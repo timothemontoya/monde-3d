@@ -284,7 +284,8 @@ export const REGIONS: Region[] = [
     nom: "La Fracture d'or",
     couleur: "#ffc300",
     sousTitre: "Elle prend racine",
-    relief: { altitude: 25, amplitude: 40, montagne: 1 },
+    // Basse et creuse au centre : ce sont les cristaux qui se dressent, de plus en plus hauts vers l'extérieur.
+    relief: { altitude: 5, amplitude: 6, montagne: 0.2 },
     ambiance: { brume: "#ffd870", densite: 0.002, lumiere: "#fff0b0", ciel: "#fff0c0", sol: "#6a4a10" },
     vegetation: "aucune",
     sol: ["#ffc300", "#e8a010"],
