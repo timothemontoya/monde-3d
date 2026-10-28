@@ -26,7 +26,7 @@ function EcranTitre() {
     <div className="ecran-titre">
       <div className="titre-bloc">
         <p className="sur-titre">Un monde à découvrir</p>
-        <h1>L'Île sans nom</h1>
+        <h1>Aurelith</h1>
         <div className="filet" />
         <button
           className="bouton bouton-principal"

@@ -1,4 +1,4 @@
-# L'Île sans nom
+# Aurelith
 
 Un monde à explorer dans le navigateur, façon Elden Ring : régions fermées par des tempêtes,
 des brumes magiques, des murs de givre et des portes, indices à rassembler, énigmes, objets à
