@@ -67,6 +67,10 @@ kbd {
 /* Bannière de zone */
 .banniere { position: absolute; left: 0; right: 0; top: 34%; text-align: center; opacity: 0; transition: opacity 1.4s ease; }
 .banniere.visible { opacity: 1; }
+/* Lieu déjà connu : juste son nom, petit, en haut. */
+.banniere.discrete { top: 6%; }
+.banniere.discrete h2 { font-size: clamp(1rem, 1.8vw, 1.35rem); letter-spacing: 0.18em; }
+.banniere.discrete .banniere-lumiere { height: 50px; width: min(420px, 70vw); }
 .banniere-lumiere { position: absolute; left: 50%; top: 50%; width: min(900px, 90vw); height: 120px; transform: translate(-50%, -50%);
   background: radial-gradient(ellipse at center, rgba(0,0,0,0.55), transparent 70%); }
 .banniere h2 { position: relative; font-family: var(--titre); font-weight: 400; font-size: clamp(2rem, 4.5vw, 3.4rem);

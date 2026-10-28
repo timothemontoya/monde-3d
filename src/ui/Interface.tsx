@@ -81,15 +81,15 @@ function Banniere() {
   useEffect(() => {
     if (!banniere) return;
     setVisible(true);
-    const t = setTimeout(() => setVisible(false), 3800);
+    const t = setTimeout(() => setVisible(false), banniere.discret ? 2200 : 3800);
     return () => clearTimeout(t);
   }, [banniere]);
   if (!banniere) return null;
   return (
-    <div className={`banniere ${visible ? "visible" : ""}`} key={banniere.cle}>
+    <div className={`banniere ${banniere.discret ? "discrete" : ""} ${visible ? "visible" : ""}`} key={banniere.cle}>
       <div className="banniere-lumiere" />
       <h2>{banniere.titre}</h2>
-      <p>{banniere.sousTitre}</p>
+      {banniere.sousTitre && <p>{banniere.sousTitre}</p>}
     </div>
   );
 }
@@ -112,7 +112,7 @@ function PanneauLore() {
       <p className="sur-titre">{lieu.sousTitre}</p>
       <h3>{lieu.nom}</h3>
       <div className="filet gauche" />
-      <Paragraphes lore={lieu.lore} />
+      <Paragraphes lieu={lieu.id} lore={lieu.lore} />
       <EspecesDuLieu id={lieu.id} />
     </aside>
   );

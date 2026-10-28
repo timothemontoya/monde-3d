@@ -1,17 +1,17 @@
 import { ESPECES, INDICES, LIEUX, OBJETS, REGIONS, SUCCES } from "../content/monde";
 import type { Lore } from "../content/types";
-import { indiceParId, remplie, useJeu, type Onglet } from "../game/store";
+import { indiceParId, loreConnue, remplie, useJeu, type Onglet } from "../game/store";
 import { GrandeCarte } from "./Carte";
 
 const lieuParId = (id: string) => LIEUX.find((l) => l.id === id) ?? REGIONS.find((r) => r.id === id);
 
 /** Paragraphes de lore : révélés, ou « · · · » s'ils restent à découvrir. */
-export function Paragraphes({ lore }: { lore: Lore[] }) {
+export function Paragraphes({ lieu, lore }: { lieu: string; lore: Lore[] }) {
   const etat = useJeu();
   return (
     <>
       {lore.map((l, i) =>
-        remplie(l.quand, etat) ? (
+        loreConnue(lieu, l, etat) ? (
           <p key={i} className="lore">
             {l.texte}
           </p>
@@ -53,7 +53,7 @@ function OngletLieux() {
           <h3>
             {l.nom} <small>{l.sousTitre}</small>
           </h3>
-          <Paragraphes lore={l.lore} />
+          <Paragraphes lieu={l.id} lore={l.lore} />
           <EspecesDuLieu id={l.id} />
         </section>
       ))}

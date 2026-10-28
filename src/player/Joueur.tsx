@@ -55,7 +55,7 @@ const PRISE_SOL = 10;
 const PRISE_AIR = 2;
 const PRISE_VOL = 4;
 /** Balancement de la tête à chaque pas, en m (marche, course), et cadence des pas (pas par seconde). */
-const BALANCEMENT: [number, number] = [0.05, 0.08];
+const BALANCEMENT: [number, number] = [0.09, 0.14];
 const CADENCE = (v: number) => 1.5 + 0.085 * v;
 /** Champ de vision (degrés) à l'arrêt, et en plus quand on court. */
 const FOV = 70;
@@ -112,7 +112,7 @@ export function Joueur() {
   /** Vitesse horizontale (m/s), qui suit la vitesse voulue avec un peu d'inertie. */
   const elan = useRef(new THREE.Vector2());
   /** Pas : phase (un pas tous les π), amplitude (0 à l'arrêt, 1 en marche), tassement à l'atterrissage (m). */
-  const foulee = useRef({ phase: 0, amplitude: 0, tassement: 0 });
+  const foulee = useRef(positionJoueur.foulee);
 
   // Contrôleur de personnage : glisse le long des murs. Créé dans un effet pour survivre
   // au double montage de React en développement.
@@ -376,9 +376,10 @@ export function Joueur() {
     p.amplitude += (marche - p.amplitude) * (1 - Math.exp(-dt * 6));
     p.phase += dt * CADENCE(v) * Math.PI * (marche > 0.05 ? 1 : 0);
     const course = THREE.MathUtils.smoothstep(v, REGLAGES.vitesse, REGLAGES.vitesseRapide);
+    p.allure = course;
     const a = p.amplitude * THREE.MathUtils.lerp(BALANCEMENT[0], BALANCEMENT[1], course);
     const haut = (Math.abs(Math.sin(p.phase)) - 0.6) * a;
-    const cote = Math.sin(p.phase) * a * 0.45;
+    const cote = Math.sin(p.phase) * a * 0.5;
     p.tassement *= Math.exp(-dt * 7);
     camera.position.set(
       suivant.x - avant.x * 0.2 + droite.x * cote,

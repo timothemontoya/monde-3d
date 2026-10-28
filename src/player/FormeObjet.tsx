@@ -1,7 +1,8 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { OBJETS } from "../content/monde";
+import { positionJoueur } from "../game/joueur";
 import { useJeu } from "../game/store";
 import { Modele } from "../world/modeles";
 
@@ -103,15 +104,27 @@ export function ObjetEnMain() {
   const ref = useRef<THREE.Group>(null);
   const decalage = new THREE.Vector3(0.42, -0.36, -0.75);
 
-  useFrame((state) => {
+  // L'objet suit le regard avec un peu de retard (il « traîne » quand on tourne la tête).
+  const regard = useRef(new THREE.Quaternion());
+  const inclinaison = useMemo(() => new THREE.Euler(), []);
+  useFrame((state, dt) => {
     const g = ref.current;
     if (!g) return;
-    // Léger balancement, comme une main qui marche.
     const t = state.clock.elapsedTime;
+    const f = positionJoueur.foulee;
+    // En marchant, la main décrit un huit à chaque pas (plus ample en courant) ; à l'arrêt, elle respire.
+    const a = f.amplitude * (1 + f.allure * 0.8);
     const d = decalage.clone();
-    d.y += Math.sin(t * 2) * 0.008;
-    g.position.copy(camera.position).add(d.applyQuaternion(camera.quaternion));
-    g.quaternion.copy(camera.quaternion);
+    d.x += Math.sin(f.phase) * 0.045 * a;
+    d.y += (-Math.abs(Math.cos(f.phase)) * 0.05 + 0.025) * a + Math.sin(t * 1.6) * 0.008 * (1 - f.amplitude) - f.tassement * 0.5;
+    // En courant, la main descend un peu et se rapproche.
+    d.y -= 0.05 * f.allure * f.amplitude;
+    d.z += 0.06 * f.allure * f.amplitude;
+    regard.current.slerp(camera.quaternion, 1 - Math.exp(-dt * 18));
+    g.position.copy(camera.position).add(d.applyQuaternion(regard.current));
+    // L'objet se balance aussi : il penche d'un côté puis de l'autre à chaque pas.
+    inclinaison.set(Math.cos(f.phase * 2) * 0.05 * a, Math.sin(f.phase) * 0.06 * a, Math.sin(f.phase) * 0.09 * a);
+    g.quaternion.copy(regard.current).multiply(new THREE.Quaternion().setFromEuler(inclinaison));
   });
 
   if (!enMain) return null;

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { ENIGMES, ESPECES, FEUX, INDICES, LIEUX, OBJETS, PORTS, REGIONS, SUCCES } from "../content/monde";
-import type { Condition, Succes } from "../content/types";
+import { ENIGMES, ESPECES, FEUX, INDICES, LIEUX, OBJETS, PORTS, REGIONS, REGLAGES, SUCCES } from "../content/monde";
+import type { Condition, Indice, Lore, Succes } from "../content/types";
 
 /** Progression du joueur, sauvegardée dans le navigateur. */
 type Progression = {
@@ -43,7 +43,7 @@ type Etat = Progression & {
   cible: Cible;
   message: string | null;
   panneau: Panneau;
-  banniere: { titre: string; sousTitre: string; cle: number } | null;
+  banniere: { titre: string; sousTitre: string; cle: number; discret?: boolean } | null;
   affiche: Affiche;
   notifications: { id: string; titre: string; texte: string }[];
   /** Écran noir pendant un voyage. */
@@ -88,6 +88,31 @@ export function remplie(c: Condition | undefined, p: Progression) {
     (!c.objet || p.objets.includes(c.objet)) &&
     (!c.objetEnMain || p.enMain === c.objetEnMain)
   );
+}
+
+/** Nom sans article, en minuscules : « Le Village blanc » → « village blanc ». */
+const sansArticle = (nom: string) => nom.toLowerCase().replace(/^(le |la |les |l'|l’)/, "");
+const reveles = new Map<string, string[]>();
+/** Les lieux dont un indice apprend l'histoire : sa liste `revele`, sinon ceux qu'il nomme et ceux où il se trouve. */
+export function lieuxReveles(indice: Indice) {
+  let ids = reveles.get(indice.id);
+  if (!ids) {
+    const texte = `${indice.titre} ${indice.texte}`.toLowerCase();
+    const nommes = [...REGIONS, ...LIEUX].filter((l) => texte.includes(sansArticle(l.nom))).map((l) => l.id);
+    const autour = LIEUX.filter((l) => Math.hypot(l.position[0] - indice.position[0], l.position[1] - indice.position[1]) * REGLAGES.metresParPixel < l.rayon).map((l) => l.id);
+    ids = indice.revele ?? [...new Set([...nommes, ...autour])];
+    reveles.set(indice.id, ids);
+  }
+  return ids;
+}
+
+/** A-t-on appris ce paragraphe du lieu `lieu` ? */
+export function loreConnue(lieu: string, l: Lore, p: Progression) {
+  if (l.quand) return remplie(l.quand, p);
+  return p.indices.some((id) => {
+    const indice = INDICES.find((i) => i.id === id);
+    return !!indice && lieuxReveles(indice).includes(lieu);
+  });
 }
 
 function succesObtenu(s: Succes, p: Progression) {
@@ -163,9 +188,10 @@ export const useJeu = create<Etat>()(
         const nouveau = lieu !== e.lieuActuel && lieu ? lieu : region !== e.regionActuelle && region ? region : null;
         if (nouveau) {
           const def = LIEUX.find((l) => l.id === nouveau) ?? REGIONS.find((r) => r.id === nouveau)!;
+          // En grand, et avec ce qu'on en sait, seulement à la découverte ; ensuite, juste le nom, discret.
           const premiereFois = !e.lieux.includes(nouveau);
-          next.banniere = { titre: def.nom, sousTitre: premiereFois ? "Lieu découvert" : def.sousTitre, cle: Date.now() };
-          next.affiche = { id: nouveau, cle: Date.now() };
+          next.banniere = { titre: def.nom, sousTitre: premiereFois ? "Lieu découvert" : "", cle: Date.now(), discret: !premiereFois };
+          if (premiereFois) next.affiche = { id: nouveau, cle: Date.now() };
         }
         const decouverts = [region, lieu].filter((x): x is string => !!x && !e.lieux.includes(x));
         if (decouverts.length) next.lieux = [...e.lieux, ...decouverts];
@@ -191,10 +217,19 @@ export const useJeu = create<Etat>()(
         if (e.indices.includes(id)) return;
         const indice = INDICES.find((i) => i.id === id);
         const next: Partial<Etat> = { indices: [...e.indices, id] };
+        next.notifications = [...e.notifications];
         if (indice?.donne && !e.objets.includes(indice.donne)) {
           next.objets = [...e.objets, indice.donne];
           const objet = OBJETS.find((o) => o.id === indice.donne)!;
-          next.notifications = [...e.notifications, { id: `obj-${objet.id}`, titre: `Obtenu · ${objet.nom}`, texte: objet.description }];
+          next.notifications.push({ id: `obj-${objet.id}`, titre: `Obtenu · ${objet.nom}`, texte: objet.description });
+        }
+        // Ce qu'on vient d'apprendre sur des lieux : leur histoire s'écrit dans le journal.
+        if (indice) {
+          const appris = lieuxReveles(indice)
+            .map((l) => [...REGIONS, ...LIEUX].find((x) => x.id === l)!)
+            .filter((l) => l && l.lore.some((p) => !p.quand && !loreConnue(l.id, p, e)));
+          if (appris.length)
+            next.notifications.push({ id: `appris-${id}`, titre: "Journal mis à jour", texte: `Vous en savez plus sur : ${appris.map((l) => l.nom).join(", ")}` });
         }
         set(next);
         set(verifierSucces(get()));

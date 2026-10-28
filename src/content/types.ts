@@ -31,7 +31,10 @@ export type Condition = {
   objetEnMain?: string;
 };
 
-/** Un paragraphe de lore : caché (« … ») tant que sa condition n'est pas remplie. */
+/**
+ * Un paragraphe de lore : caché (« … ») tant qu'on ne l'a pas appris. Sans condition, on l'apprend en
+ * lisant un indice qui parle du lieu (voir Indice.revele) ; avec une condition, quand elle est remplie.
+ */
 export type Lore = { texte: string; quand?: Condition };
 
 export type Relief = {
@@ -274,6 +277,12 @@ export type Indice = {
   liens?: string[];
   /** Objet obtenu en lisant l'indice. */
   donne?: string;
+  /**
+   * Lieux et régions dont on apprend l'histoire en lisant l'indice (leurs paragraphes de lore sans
+   * condition s'écrivent dans le journal). Par défaut : ceux que le titre ou le texte nomment, et les
+   * lieux-dits où l'indice se trouve.
+   */
+  revele?: string[];
 };
 
 export type Enigme = {
