@@ -183,3 +183,11 @@ Transform this screenshot of my low-poly 3D exploration game into a polished pie
 
 The half of Elcres that was abandoned to a disease: a grey ghost town frozen at the moment of the flight. Pale stone houses with open doors, tables still set, laundry still hanging, a bell tower whose bell rings alone, a dried fountain, dead trees, carts left on the streets. Greenish-grey mist, extinguished lanterns, silence. Invent the town on this narrow grey land between the sea and the red lands.
 ```
+
+## 23 · La Fracture d'or
+
+```
+Transform this screenshot of my low-poly 3D exploration game into a polished piece of concept art. Keep the camera angle, the composition, the coastline and the position of the main buildings, walls and paths, so the result can guide how I build this place in the game. Style: stylized low-poly fantasy with clean, chunky shapes, a warm fairy-tale mood that is slightly melancholic, painterly lighting, soft volumetric light rays, atmospheric depth fog, rich but harmonious colors, lots of small ground details (grass tufts, flowers, rocks, fences, props). No text, no UI, no characters in the foreground.
+
+The Golden Fracture itself: a star-shaped island out at sea, made of molten gold and glowing crystal. Huge jagged golden crystals burst out of the ground in clusters, some leaning, some cracked, all pulsing with an inner light. The ground is cracked like dried earth, with bright golden veins running through it like roots and spreading out into the sea, where the water turns golden and still around the island. A few drained, grey rocks and the remains of dead trees show that it absorbed whatever lived here. Floating golden shards and sparks drift in the air; a column of light rises from the heart of the star toward the sky. It is a magic object that appeared by chance and is taking root in this world: make it beautiful, alien and threatening at the same time. Golden haze, dark stormy sky above contrasting with the glow.
+```
