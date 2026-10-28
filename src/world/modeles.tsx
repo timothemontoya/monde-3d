@@ -38,13 +38,21 @@ export function Instances({
   materiau,
   matrices,
   ombre = true,
+  contour = true,
 }: {
   geometrie: THREE.BufferGeometry;
   materiau: THREE.Material | THREE.Material[];
   matrices: THREE.Matrix4[];
   ombre?: boolean;
+  /** Faux pour les petites plantes : elles n'écrivent pas la profondeur (dessinées après le reste), donc pas de trait d'encre autour de chaque brin. */
+  contour?: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
+  const mat = useMemo(() => {
+    if (contour) return materiau;
+    const sans = (m: THREE.Material) => Object.assign(m.clone(), { depthWrite: false });
+    return Array.isArray(materiau) ? materiau.map(sans) : sans(materiau);
+  }, [materiau, contour]);
   useLayoutEffect(() => {
     const m = ref.current;
     if (!m) return;
@@ -53,7 +61,7 @@ export function Instances({
     m.computeBoundingSphere();
   }, [matrices]);
   if (!matrices.length) return null;
-  return <instancedMesh ref={ref} args={[geometrie, materiau, matrices.length]} castShadow={ombre} receiveShadow />;
+  return <instancedMesh ref={ref} args={[geometrie, mat, matrices.length]} castShadow={ombre} receiveShadow renderOrder={contour ? 0 : 10} />;
 }
 
 /** Copie de la scène du modèle, avec ombres. */
@@ -90,12 +98,12 @@ export function Modele({ modele, provisoire = null, ...props }: { modele: string
 type Morceau = { geometrie: THREE.BufferGeometry; materiau: THREE.Material | THREE.Material[]; local: THREE.Matrix4 };
 
 /** Un morceau (mesh) du modèle, répété à chaque position. */
-function InstancesMorceau({ morceau, matrices, ombre }: { morceau: Morceau; matrices: THREE.Matrix4[]; ombre: boolean }) {
+function InstancesMorceau({ morceau, matrices, ombre, contour }: { morceau: Morceau; matrices: THREE.Matrix4[]; ombre: boolean; contour: boolean }) {
   const finales = useMemo(() => matrices.map((m) => m.clone().multiply(morceau.local)), [matrices, morceau]);
-  return <Instances geometrie={morceau.geometrie} materiau={morceau.materiau} matrices={finales} ombre={ombre} />;
+  return <Instances geometrie={morceau.geometrie} materiau={morceau.materiau} matrices={finales} ombre={ombre} contour={contour} />;
 }
 
-function InstancesChargees({ url, matrices, ombre }: { url: string; matrices: THREE.Matrix4[]; ombre: boolean }) {
+function InstancesChargees({ url, matrices, ombre, contour }: { url: string; matrices: THREE.Matrix4[]; ombre: boolean; contour: boolean }) {
   const { scene } = useGLTF(url);
   const morceaux = useMemo(() => {
     scene.updateMatrixWorld(true);
@@ -109,7 +117,7 @@ function InstancesChargees({ url, matrices, ombre }: { url: string; matrices: TH
   return (
     <>
       {morceaux.map((m, i) => (
-        <InstancesMorceau key={i} morceau={m} matrices={matrices} ombre={ombre} />
+        <InstancesMorceau key={i} morceau={m} matrices={matrices} ombre={ombre} contour={contour} />
       ))}
     </>
   );
@@ -122,11 +130,13 @@ export function InstancesModele({
   matrices,
   provisoire,
   ombre = true,
+  contour = true,
 }: {
   modele: string;
   matrices: THREE.Matrix4[];
   provisoire: ReactNode;
   ombre?: boolean;
+  contour?: boolean;
 }) {
   const url = URLS[modele];
   if (!matrices.length) return null;
@@ -134,7 +144,7 @@ export function InstancesModele({
   return (
     <SiEchec provisoire={provisoire}>
       <Suspense fallback={provisoire}>
-        <InstancesChargees url={url} matrices={matrices} ombre={ombre} />
+        <InstancesChargees url={url} matrices={matrices} ombre={ombre} contour={contour} />
       </Suspense>
     </SiEchec>
   );

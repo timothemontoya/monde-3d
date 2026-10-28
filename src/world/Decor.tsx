@@ -173,30 +173,34 @@ const PETITES = new Set(["herbe", "fleur"]);
 /** Arbres isolés dans les clairières et les prés, entre les bosquets. */
 const isoles = (nom: string, n: number, densite: number): Semis => ({ ...arbres(nom, n, densite), bosquets: "hors", echelle: [0.7, 1.3] });
 /** Buissons hors des bosquets : lisières, bords de champs. */
+/** Touffes d'herbe haute serrées dans les bosquets : des masses, pas des brins isolés. */
+const TOUFFES: Semis = { ...HERBES, densite: 60, echelle: [2, 3.2], bosquets: "dans" };
 const BUISSONS_EPARS: Semis = { ...BUISSONS, densite: 5, bosquets: "hors" };
 /** Petits rochers au ras du sol, partout. */
-const CAILLOUX: Semis = { ...ROCHERS_EPARS, densite: 6, echelle: [0.25, 0.6], marge: 0.8 };
+const CAILLOUX: Semis = { ...ROCHERS_EPARS, densite: 10, echelle: [0.25, 0.6], marge: 0.8 };
 
 const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
   "foret-doree": [
-    arbres("arbre-dore", 6, 13, "dans"),
+    arbres("arbre-dore", 6, 17, "dans"),
     isoles("arbre-dore", 6, 1.8),
     { ...BUISSONS, densite: 20 },
     BUISSONS_EPARS,
     HERBES,
-    { ...FLEURS, densite: 90 },
+    TOUFFES,
+    { ...FLEURS, densite: 140 },
     { ...BOIS_MORT, densite: 2.5 },
     { ...TRACES, densite: 1.2 },
     CAILLOUX,
   ],
   // Landes roses : arbres en fleurs, beaucoup de fleurs, des rochers.
   "landes-roses": [
-    arbres("arbre-rose", 3, 11, "dans"),
+    arbres("arbre-rose", 3, 16, "dans"),
     isoles("arbre-rose", 3, 2.5),
     { ...BUISSONS, densite: 14 },
     BUISSONS_EPARS,
     { ...HERBES, densite: 220 },
-    { ...FLEURS, densite: 130 },
+    TOUFFES,
+    { ...FLEURS, densite: 200 },
     { ...TRACES, densite: 0.8 },
     { ...BOIS_MORT, densite: 0.8 },
     CAILLOUX,
@@ -216,8 +220,8 @@ const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
   "foret-sombre": [
     arbres("arbre-sorciere", 3, 36),
     { ...BUISSONS, densite: 14, bosquets: undefined },
-    { ...CHAMPIGNONS, densite: 20 },
-    { ...HERBES, densite: 60 },
+    { ...CHAMPIGNONS, densite: 40 },
+    { ...HERBES, densite: 120 },
     { ...BOIS_MORT, densite: 3 },
     CAILLOUX,
   ],
@@ -242,6 +246,7 @@ const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
   rochers: [
     { ...ROCHERS_EPARS, densite: 9, echelle: [0.8, 2.8] },
     { ...HERBES, densite: 200 },
+    TOUFFES,
     { ...BUISSONS, densite: 16 },
     { ...BUISSONS_EPARS, densite: 8 },
     { ...FLEURS, densite: 30 },
@@ -397,6 +402,7 @@ function Vegetation() {
           modele={id}
           matrices={matrices}
           ombre={!PETITES.has(forme)}
+          contour={!PETITES.has(forme)}
           provisoire={f[forme].map((m, i) => (
             <Instances key={i} geometrie={m.geometrie} materiau={m.materiau} matrices={matrices} />
           ))}

@@ -78,6 +78,7 @@ function materiauHerbe() {
   const c = laCarte();
   return new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
+    depthWrite: false,
     fog: true,
     uniforms: THREE.UniformsUtils.merge([
       THREE.UniformsLib.fog,
@@ -214,5 +215,6 @@ export function Herbe() {
   });
 
   if (LEGER) return null;
-  return <mesh geometry={geometrie} material={materiau} frustumCulled={false} />;
+  // Dessinée après le reste, sans écrire la profondeur : pas de trait d'encre autour de chaque brin.
+  return <mesh geometry={geometrie} material={materiau} frustumCulled={false} renderOrder={10} />;
 }
