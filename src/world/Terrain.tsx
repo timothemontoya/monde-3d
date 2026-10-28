@@ -236,11 +236,15 @@ vec3 couleurSol(vec3 pos, vec3 n) {
   vec4 trace = texture2D(uTraces, uv);
   float lueur = texture2D(uLueurs, uv).r;
   float dessus = 1.0 - smoothstep(0.05, 0.3, lueur);
-  // Des îlots d'herbe au milieu du chemin, par endroits (pas sur la lave).
-  float ilots = smoothstep(0.66, 0.74, fbmSol(q.xz + 91.0, 1.0 / 5.0)) * 0.9 * dessus;
-  float bord = trace.a + (moyennes - 0.5) * 0.35 + (grain - 0.5) * 0.18 - ilots;
+  // Des îlots d'herbe au milieu du chemin, par endroits (pas sur la lave) : la terre s'y fond peu à peu
+  // en herbe, avec une herbe rase et poussiéreuse entre les deux.
+  float ilots = smoothstep(0.55, 0.8, fbmSol(q.xz + 91.0, 1.0 / 5.0) + (grain - 0.5) * 0.08) * 0.9 * dessus;
+  float bord = trace.a + (moyennes - 0.5) * 0.35 + (grain - 0.5) * 0.18;
   float tTrace = smoothstep(0.2, 0.5, bord) * smoothstep(0.4, 1.2, pos.y);
   vec3 terre = trace.rgb * (0.82 + 0.26 * grain + 0.1 * fin);
+  vec3 herbeRase = mix(c, terre, 0.35);
+  terre = mix(terre, herbeRase, smoothstep(0.0, 0.5, ilots));
+  terre = mix(terre, c, smoothstep(0.5, 0.9, ilots));
   c = mix(c, terre, tTrace);
   // Sous ce qui brille, une croûte sombre : la lumière vient de l'émission (lueurSol).
   return mix(c, trace.rgb * 0.25, smoothstep(0.1, 0.6, lueur));
