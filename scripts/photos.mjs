@@ -18,12 +18,16 @@ if (!sortie || !vues.length) {
 }
 mkdirSync(sortie, { recursive: true });
 const URL_JEU = process.env.URL ?? "http://localhost:5173/";
+// La carte graphique (des centaines de fois plus rapide) ; LOGICIEL=1 pour le rendu sans carte graphique.
+const RENDU = process.env.LOGICIEL
+  ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
+  : ["--use-angle=gl", "--enable-gpu", "--ignore-gpu-blocklist"];
 const PORT = 9333;
 const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
 const chrome = spawn(
   process.env.CHROME ?? "google-chrome",
-  ["--headless=new", "--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", `--remote-debugging-port=${PORT}`, `--user-data-dir=${sortie}/.chrome`, "--window-size=1600,900", "about:blank"],
+  ["--headless=new", "--no-sandbox", ...RENDU, `--remote-debugging-port=${PORT}`, `--user-data-dir=${sortie}/.chrome`, "--window-size=1600,900", "about:blank"],
   { stdio: "ignore" },
 );
 try {
