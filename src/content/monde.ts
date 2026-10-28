@@ -36,6 +36,7 @@ import type {
   Usage,
   Village,
   Volcan,
+  Guirlande,
 } from "./types";
 
 export const REGLAGES = {
@@ -743,6 +744,16 @@ export const VILLAGES: Village[] = [
     disposition: { type: "place", anneaux: 2, rues: [[140, 150], [139, 196]] },
     plateau: false,
   },
+  {
+    // Le bourg d'Elcres abandonnée : une rue qui monte vers la chapelle, autour d'une fontaine tarie.
+    id: "bourg-elcres",
+    centre: [1146, 204],
+    rayon: 45,
+    nombre: 12,
+    modeles: ["maison-elcres-1", "maison-elcres-2", "maison-elcres-3", "maison-elcres-1", "maison-ruine-1", "maison-ruine-2"],
+    substitut: { murs: "#cfcabb", toit: "#5d6650", taille: [7.5, 9, 6.4] },
+    disposition: { type: "rue", chemin: "rue-elcres" },
+  },
 ];
 
 /**
@@ -751,6 +762,53 @@ export const VILLAGES: Village[] = [
  * de sol aplani (m) · solide : boîte de collision [largeur, hauteur, profondeur] (m) · echelle.
  */
 export const DECORS: DecorUnique[] = [
+  // Cité du vent : des moulins sur les rochers tout autour, des bannières autour de la place.
+  { modele: "moulin", position: [956, 805], angle: 180, plateforme: 6, solide: [4.5, 12, 4.5] },
+  { modele: "rocher-1", position: [960, 807], echelle: 2.2 },
+  { modele: "rocher-2", position: [953, 809], echelle: 2.8 },
+  { modele: "rocher-3", position: [958, 801], echelle: 3.4 },
+  { modele: "moulin", position: [908, 888], angle: 240, plateforme: 6, solide: [4.5, 12, 4.5] },
+  { modele: "rocher-1", position: [912, 890], echelle: 2.2 },
+  { modele: "rocher-2", position: [905, 892], echelle: 2.8 },
+  { modele: "rocher-3", position: [910, 884], echelle: 3.4 },
+  { modele: "moulin", position: [845, 888], angle: 280, plateforme: 6, solide: [4.5, 12, 4.5] },
+  { modele: "rocher-1", position: [849, 890], echelle: 2.2 },
+  { modele: "rocher-2", position: [842, 892], echelle: 2.8 },
+  { modele: "rocher-3", position: [847, 884], echelle: 3.4 },
+  { modele: "moulin", position: [764, 805], angle: 0, plateforme: 6, solide: [4.5, 12, 4.5] },
+  { modele: "rocher-1", position: [768, 807], echelle: 2.2 },
+  { modele: "rocher-2", position: [761, 809], echelle: 2.8 },
+  { modele: "rocher-3", position: [766, 801], echelle: 3.4 },
+  { modele: "moulin", position: [796, 751], angle: 40, plateforme: 6, solide: [4.5, 12, 4.5] },
+  { modele: "rocher-1", position: [800, 753], echelle: 2.2 },
+  { modele: "rocher-2", position: [793, 755], echelle: 2.8 },
+  { modele: "rocher-3", position: [798, 747], echelle: 3.4 },
+  { modele: "moulin", position: [873, 734], angle: 100, plateforme: 6, solide: [4.5, 12, 4.5] },
+  { modele: "rocher-1", position: [877, 736], echelle: 2.2 },
+  { modele: "rocher-2", position: [870, 738], echelle: 2.8 },
+  { modele: "rocher-3", position: [875, 730], echelle: 3.4 },
+  { modele: "banniere-vent", position: [875, 811], angle: 112 },
+  { modele: "banniere-vent", position: [866, 820], angle: 158 },
+  { modele: "banniere-vent", position: [854, 820], angle: 202 },
+  { modele: "banniere-vent", position: [845, 811], angle: 248 },
+  { modele: "banniere-vent", position: [845, 799], angle: 292 },
+  { modele: "banniere-vent", position: [854, 790], angle: 338 },
+  { modele: "banniere-vent", position: [866, 790], angle: 22 },
+  { modele: "banniere-vent", position: [875, 799], angle: 68 },
+  // Elcres abandonnée : la fontaine tarie, la chapelle au bout de la rue, ce qu'on a laissé.
+  { modele: "fontaine", position: [1144, 210], plateforme: 6, solide: [6, 1.5, 6] },
+  { modele: "chapelle-elcres", position: [1151, 172], angle: 90, plateforme: 11, solide: [12, 10, 6.4] },
+  { modele: "charrette", position: [1137, 216], angle: 30 },
+  { modele: "ruine-mur", position: [1133, 226], angle: 80, echelle: 0.6 },
+  { modele: "ruine-mur", position: [1158, 222], angle: 100, echelle: 0.5 },
+  { modele: "tonneau", position: [1152, 214] },
+  { modele: "tonneau", position: [1153, 216] },
+  { modele: "caisse", position: [1139, 196], angle: 20 },
+  { modele: "lanterne", position: [1149, 190] },
+  { modele: "lanterne", position: [1141, 226] },
+  { modele: "maison-ruine-1", position: [1156, 204], angle: 180, plateforme: 5 },
+  { modele: "maison-ruine-2", position: [1157, 190], angle: 180, plateforme: 5 },
+
   // Village blanc : la place (fontaine, marché) et les lanternes de la grand-rue.
   { modele: "fontaine", position: [998, 633], echelle: 1.6, plateforme: 7, solide: [9.5, 1.5, 9.5] },
   // Le marché, en arc du côté opposé à la porte.
@@ -942,6 +1000,8 @@ export const DECORS: DecorUnique[] = [
 
 /** Chemins de terre (largeur en m). */
 export const CHEMINS: Chemin[] = [
+  // Des Terres rougies à la chapelle d'Elcres abandonnée : la rue du bourg.
+  { id: "rue-elcres", points: [[1165, 300], [1152, 262], [1146, 236], [1143, 214], [1145, 195], [1150, 182]], largeur: 4, lanternes: 22 },
   ...cheminsDuLabyrinthe(),
   // Du pont à la Forge-sous-Cendre : la montée la plus douce.
   { id: "montee-forge", points: [[424, 110], [433, 109], [440, 106], [444, 101]], largeur: 3 },
@@ -1195,4 +1255,13 @@ export const SUCCES: Succes[] = [
     quand: { lieux: ["village-blanc", "terres-libres", "cite-volcanique", "glace", "foret-sorcieres", "montagne-vent"] },
   },
   { id: "archiviste", titre: "Archiviste", description: "Trouver tous les indices.", secret: true, quand: { indicesTous: true } },
+];
+
+/** Guirlandes de fanions tendues au-dessus des places (entre deux poteaux). */
+export const GUIRLANDES: Guirlande[] = [
+  { de: [871, 810], a: [849, 810] },
+  { de: [865, 816], a: [849, 800] },
+  { de: [855, 816], a: [855, 794] },
+  { de: [849, 810], a: [865, 794] },
+  { de: [849, 800], a: [871, 800] },
 ];

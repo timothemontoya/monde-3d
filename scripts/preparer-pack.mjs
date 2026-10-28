@@ -179,6 +179,34 @@ const PALETTE_VILLAGE = {
   "#f2bf99": "#efe6d2",
 };
 
+/** Moulin : une tour d'une tuile sur trois étages, toit pointu, ailes sur la façade (+Z). */
+function moulin() {
+  const D = Math.PI / 2;
+  const p = (piece, pos, rot = 0, echelle = [1, 1, 1]) => ({ source: `town:${piece}`, pos, rot, echelle });
+  const pieces = [];
+  for (let e = 0; e < 3; e++) {
+    const mur = e === 0 ? "wall" : "wall-wood";
+    pieces.push(p(mur + (e === 0 ? "-door" : ""), [0, e, 0], -D), p(mur, [0, e, 0], D), p(mur + (e === 1 ? "-window-small" : ""), [0, e, 0], 0), p(mur, [0, e, 0], 2 * D));
+  }
+  pieces.push({ ...p("roof-high-point", [0, 3, 0], 0, [1.15, 1.6, 1.15]), couleur: "#b08a3e" }, p("windmill", [0, 2.55, 0.72], D));
+  return pieces;
+}
+
+/** Elcres abandonnée : enduit gris pâle, bois grisé, pierre froide. */
+const PALETTE_ELCRES = {
+  "#cf534f": "#cfcabb",
+  "#c3495c": "#c4bfb0",
+  "#ff7e44": "#55504a",
+  "#f1976c": "#625a52",
+  "#c58262": "#55504a",
+  "#b06041": "#463f3a",
+  "#9a5942": "#463f3a",
+  "#a0a8c9": "#a9a69c",
+  "#868ba1": "#8f8c84",
+  "#eeba88": "#d6d1c2",
+  "#f2bf99": "#d6d1c2",
+};
+
 /**
  * Monastère de l'iceberg (Castle Kit) : une haute tour hexagonale au centre, deux tours carrées
  * plus basses de part et d'autre, reliées par des murs ; une porte voûtée sur l'avant (+Z).
@@ -310,6 +338,18 @@ const RECETTES = {
   "cabane-peche-1": { pieces: maison({ largeur: 2, bas: "wall-wood", toit: "roof", couleurToit: "#c2453a" }), echelle: TUILE, couleurs: { colormap: "#e8d8c0" } },
   "cabane-peche-2": { pieces: maison({ largeur: 2, bas: "wall-wood", toit: "roof", couleurToit: "#3a78b0", cheminee: false }), echelle: TUILE, couleurs: { colormap: "#d8e4ec" } },
   "cabane-peche-3": { pieces: maison({ largeur: 2, bas: "wall-wood", toit: "roof", couleurToit: "#e0b03a", fenetre: "-window-round" }), echelle: TUILE, couleurs: { colormap: "#f0e2c8" } },
+  // Elcres abandonnée : maisons grises aux toits moussus, une chapelle et son clocher.
+  "maison-elcres-1": { pieces: maison({ largeur: 3, etages: 2, bas: "wall", couleurToit: "#5d6650" }), echelle: TUILE, palette: PALETTE_ELCRES },
+  "maison-elcres-2": { pieces: maison({ largeur: 2, etages: 2, bas: "wall", fenetre: "-window-small", couleurToit: "#4f5a48" }), echelle: TUILE, palette: PALETTE_ELCRES },
+  "maison-elcres-3": { pieces: maison({ largeur: 3, etages: 1, bas: "wall", couleurToit: "#66705a" }), echelle: TUILE, palette: PALETTE_ELCRES },
+  "chapelle-elcres": {
+    pieces: maison({ largeur: 3, etages: 2, bas: "wall", fenetre: "-window-round", cheminee: false, couleurToit: "#58604a", tourelles: [{ cote: 1, etages: 5 }] }),
+    echelle: TUILE,
+    palette: PALETTE_ELCRES,
+  },
+  // Cité du vent : moulins sur les rochers, bannières claquant au vent.
+  moulin: { pieces: moulin(), echelle: TUILE, couleurs: MURS_VENT },
+  "banniere-vent": { sources: ["town:banner-red"], hauteur: 4.5, couleurs: { colormap: "#c9a050" } },
   ponton: { sources: ["pirate:structure-platform-dock"], largeur: 5 },
 
   // Ruines de la Corne : pierre noircie, bois brûlé.

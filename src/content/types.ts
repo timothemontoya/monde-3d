@@ -321,3 +321,6 @@ export type Labyrinthe = {
 };
 
 export type Volcan = { position: Px; hauteur: number; /** Rayon de la base, en m. */ rayon: number };
+
+/** Une guirlande de fanions entre deux poteaux (plantés aux deux bouts), à `hauteur` m. */
+export type Guirlande = { de: Px; a: Px; hauteur?: number; couleurs?: string[] };

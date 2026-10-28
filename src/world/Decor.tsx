@@ -8,6 +8,7 @@ import { barriereOuverte, useJeu } from "../game/store";
 import { LEGER } from "../qualite";
 import { BrumeSorcieres } from "./BrumeSorcieres";
 import { rotationFace } from "./geometrie";
+import { Guirlandes } from "./Guirlandes";
 import { Herbe } from "./Herbe";
 import { Labyrinthe } from "./Labyrinthe";
 import { Fumees, Halos, LUEURS } from "./Lueurs";
@@ -829,6 +830,7 @@ export function Decor() {
       <PalaisGivre />
       <PortailRunique />
       <Fracture />
+      <Guirlandes />
       <Lave />
       <DecorsUniques />
       <Fumees />
