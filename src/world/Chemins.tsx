@@ -276,6 +276,16 @@ export function texturesTraces() {
   return traces;
 }
 
+/** Présence d'un chemin peint au sol en (x, z), de 0 à 1 (pour le bruit des pas). */
+export function cheminEn(x: number, z: number) {
+  const c = laCarte();
+  const tex = texturesTraces().couleur.image as { data: Uint8Array; width: number; height: number };
+  const i = Math.floor((x + (c.largeur * c.pas) / 2) / TEXEL);
+  const j = Math.floor((z + (c.hauteur * c.pas) / 2) / TEXEL);
+  if (i < 0 || j < 0 || i >= tex.width || j >= tex.height) return 0;
+  return tex.data[(j * tex.width + i) * 4 + 3] / 255;
+}
+
 /** Ce qui borde les chemins (CHEMINS dans monde.ts) : pierres, clôtures, buissons, lanternes. Le chemin lui-même est peint dans le sol. */
 export function Chemins() {
   const { pierres, lanternes, verres, clotures, bordures } = useMemo(() => {

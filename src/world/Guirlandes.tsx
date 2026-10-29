@@ -1,3 +1,4 @@
+import { useFrame } from "@react-three/fiber";
 import { useMemo } from "react";
 import * as THREE from "three";
 import { GUIRLANDES } from "../content/monde";
@@ -20,6 +21,7 @@ export function Guirlandes() {
     const cordes: number[] = [];
     const fanions: number[] = [];
     const teintes: number[] = [];
+    const pointes: number[] = [];
     const poteaux: THREE.Matrix4[] = [];
     for (const g of GUIRLANDES) {
       const [ax, az] = versMonde(g.de);
@@ -41,6 +43,7 @@ export function Guirlandes() {
         fanions.push(g1.x, g1.y, g1.z, g2.x, g2.y, g2.z, pointe.x, pointe.y, pointe.z);
         const c = new THREE.Color((g.couleurs ?? COULEURS)[i % (g.couleurs ?? COULEURS).length]);
         for (let k = 0; k < 3; k++) teintes.push(c.r, c.g, c.b);
+        pointes.push(0, 0, 1);
       }
     }
     const gc = new THREE.BufferGeometry();
@@ -48,9 +51,29 @@ export function Guirlandes() {
     const gf = new THREE.BufferGeometry();
     gf.setAttribute("position", new THREE.Float32BufferAttribute(fanions, 3));
     gf.setAttribute("color", new THREE.Float32BufferAttribute(teintes, 3));
+    gf.setAttribute("aPointe", new THREE.Float32BufferAttribute(pointes, 1));
     gf.computeVertexNormals();
     return { cordes: gc, fanions: gf, poteaux };
   }, []);
+
+  // Les fanions flottent au vent : leur pointe ondule, chacun un peu décalé.
+  const temps = useMemo(() => ({ value: 0 }), []);
+  const tissu = useMemo(() => {
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9 });
+    m.onBeforeCompile = (s) => {
+      s.uniforms.uTemps = temps;
+      s.vertexShader = s.vertexShader
+        .replace("#include <common>", "#include <common>\nuniform float uTemps;\nattribute float aPointe;")
+        .replace(
+          "#include <begin_vertex>",
+          "#include <begin_vertex>\nfloat onde = uTemps * 3.2 + position.x * 0.7 + position.z * 0.5;\ntransformed += vec3(0.28 * sin(onde), 0.12 * sin(onde * 1.7), 0.28 * cos(onde * 0.8)) * aPointe;",
+        );
+    };
+    return m;
+  }, [temps]);
+  useFrame((state) => {
+    temps.value = state.clock.elapsedTime;
+  });
 
   const poteau = useMemo(() => {
     const m = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.1, 0.13, HAUTEUR + 0.4, 6), new THREE.MeshStandardMaterial({ color: "#5a4230", roughness: 1 }), Math.max(1, poteaux.length));
@@ -66,9 +89,7 @@ export function Guirlandes() {
       <lineSegments geometry={cordes}>
         <lineBasicMaterial color="#3a2e24" />
       </lineSegments>
-      <mesh geometry={fanions} castShadow>
-        <meshStandardMaterial vertexColors side={THREE.DoubleSide} roughness={0.9} />
-      </mesh>
+      <mesh geometry={fanions} material={tissu} castShadow />
       <primitive object={poteau} />
     </>
   );

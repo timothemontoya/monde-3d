@@ -318,14 +318,6 @@ export const LIEUX: Lieu[] = [
     lore: [{ texte: "Un village pris entre les deux armées lors de la bataille de la Corne. Il n'en reste que des pierres." }],
   },
   {
-    id: "hautes-montagnes",
-    nom: "Les Hautes montagnes",
-    sousTitre: "Entre la Corne et le volcan",
-    position: [300, 85],
-    rayon: 70,
-    lore: [{ texte: "Des sommets déchiquetés. La route de la Corne en fait le tour." }],
-  },
-  {
     // Ancien « Pic de l'Hippocampe » : l'id reste le même (sauvegardes, succès).
     id: "pic-hippocampe",
     nom: "L'Avant-poste de l'Hippocampe",
@@ -456,15 +448,6 @@ export const LIEUX: Lieu[] = [
   },
   {
     // PROVISOIRE : lore à écrire.
-    id: "forge-sous-cendre",
-    nom: "La Forge-sous-Cendre",
-    sousTitre: "Dans le flanc du volcan",
-    position: [442, 100],
-    rayon: 45,
-    lore: [{ texte: "Des mineurs et des forgerons ont creusé leur village dans le flanc du volcan, loin de la demeure du chef." }],
-  },
-  {
-    // PROVISOIRE : lore à écrire.
     id: "hameau-pecheurs",
     nom: "Le Hameau des Pêcheurs",
     sousTitre: "Là où l'on respire",
@@ -512,7 +495,7 @@ export const ESPECES: Espece[] = [
 
 // ─── Reliefs et passages ────────────────────────────────────────────────────
 
-// Flancs assez doux pour qu'on monte à pied jusqu'à la Forge-sous-Cendre.
+// Flancs assez doux pour qu'on monte à pied.
 export const VOLCANS: Volcan[] = [{ position: [440, 58], hauteur: 115, rayon: 170 }];
 
 /** Le Bois perdu. */
@@ -544,13 +527,7 @@ function cheminsDuLabyrinthe(): Chemin[] {
 }
 
 /** Montagnes dessinées : le relief monte de `hauteur` m à l'intérieur de la zone. */
-export const MASSIFS: Massif[] = [
-  {
-    // Les Hautes montagnes, entre la Corne et la cité volcanique.
-    zone: [[209, 88], [227, 70], [237, 64], [268, 63], [296, 78], [311, 80], [331, 90], [366, 122], [376, 127], [392, 143], [398, 153], [398, 164], [392, 175], [387, 213], [384, 217], [359, 217], [358, 206], [354, 197], [354, 186], [358, 170], [358, 149], [326, 105], [311, 93], [274, 74], [253, 73], [247, 73], [246, 78], [232, 89], [220, 93], [210, 93]],
-    hauteur: 120,
-  },
-];
+export const MASSIFS: Massif[] = [];
 
 export const CRETES: Crete[] = [
   {
@@ -630,7 +607,7 @@ export const BARRIERES: Barriere[] = [
 // ─── Voyages ────────────────────────────────────────────────────────────────
 
 export const PORTS: Port[] = [
-  // L'île du volcan n'a pas de port : on y va par le pont de la Forge-sous-Cendre.
+  // L'île du volcan n'a pas de port : on y va par le pont depuis la cité volcanique.
   // On ne quitte la Corne qu'une fois l'avant-poste de l'Hippocampe neutralisé (PROVISOIRE : aucune énigme ne le fait encore).
   { id: "port-corne", nom: "Port de la Corne", position: [134, 311], destinations: ["port-atlantes"], quand: { enigmes: ["avant-poste-neutralise"] } },
   { id: "port-atlantes", nom: "Port des Atlantes", position: [233, 652], destinations: ["port-corne"] },
@@ -642,7 +619,7 @@ export const PONTS: Pont[] = [
   { entre: [[344, 849], [374, 823]], largeur: 4, exact: true },
   // Le pont de glace vers le monastère de l'iceberg, depuis la côte sud des Terres de glace.
   { entre: [[772, 298], [781, 272]], largeur: 3, exact: true },
-  // Le pont de la Forge-sous-Cendre, de la cité volcanique au flanc du volcan.
+  // Le pont de la cité volcanique au flanc du volcan.
   { entre: [[385, 110], [422, 108]], largeur: 4, exact: true },
 ];
 
@@ -774,30 +751,30 @@ export const VILLAGES: Village[] = [
  */
 export const DECORS: DecorUnique[] = [
   // Cité du vent : des moulins sur les rochers tout autour, des bannières autour de la place.
-  { modele: "moulin", echelle: 1.3, position: [956, 805], angle: 180, plateforme: 6, solide: [4.5, 12, 4.5] },
-  { modele: "rocher-1", position: [960, 807], echelle: 2.2 },
-  { modele: "rocher-2", position: [953, 809], echelle: 2.8 },
-  { modele: "rocher-3", position: [958, 801], echelle: 3.4 },
-  { modele: "moulin", echelle: 1.3, position: [908, 888], angle: 240, plateforme: 6, solide: [4.5, 12, 4.5] },
-  { modele: "rocher-1", position: [912, 890], echelle: 2.2 },
-  { modele: "rocher-2", position: [905, 892], echelle: 2.8 },
-  { modele: "rocher-3", position: [910, 884], echelle: 3.4 },
-  { modele: "moulin", echelle: 1.3, position: [845, 888], angle: 280, plateforme: 6, solide: [4.5, 12, 4.5] },
-  { modele: "rocher-1", position: [849, 890], echelle: 2.2 },
-  { modele: "rocher-2", position: [842, 892], echelle: 2.8 },
-  { modele: "rocher-3", position: [847, 884], echelle: 3.4 },
-  { modele: "moulin", echelle: 1.3, position: [764, 805], angle: 0, plateforme: 6, solide: [4.5, 12, 4.5] },
-  { modele: "rocher-1", position: [768, 807], echelle: 2.2 },
-  { modele: "rocher-2", position: [761, 809], echelle: 2.8 },
-  { modele: "rocher-3", position: [766, 801], echelle: 3.4 },
-  { modele: "moulin", echelle: 1.3, position: [796, 751], angle: 40, plateforme: 6, solide: [4.5, 12, 4.5] },
-  { modele: "rocher-1", position: [800, 753], echelle: 2.2 },
-  { modele: "rocher-2", position: [793, 755], echelle: 2.8 },
-  { modele: "rocher-3", position: [798, 747], echelle: 3.4 },
-  { modele: "moulin", echelle: 1.3, position: [873, 734], angle: 100, plateforme: 6, solide: [4.5, 12, 4.5] },
-  { modele: "rocher-1", position: [877, 736], echelle: 2.2 },
-  { modele: "rocher-2", position: [870, 738], echelle: 2.8 },
-  { modele: "rocher-3", position: [875, 730], echelle: 3.4 },
+  { modele: "moulin", echelle: 2.5, position: [956, 805], angle: 180, plateforme: 10, solide: [9.5, 34, 9.5] },
+  { modele: "rocher-1", position: [963, 808], echelle: 3.7 },
+  { modele: "rocher-2", position: [951, 812], echelle: 4.8 },
+  { modele: "rocher-3", position: [959, 798], echelle: 5.8 },
+  { modele: "moulin", echelle: 2.5, position: [908, 888], angle: 240, plateforme: 10, solide: [9.5, 34, 9.5] },
+  { modele: "rocher-1", position: [915, 891], echelle: 3.7 },
+  { modele: "rocher-2", position: [903, 895], echelle: 4.8 },
+  { modele: "rocher-3", position: [911, 881], echelle: 5.8 },
+  { modele: "moulin", echelle: 2.5, position: [845, 888], angle: 280, plateforme: 10, solide: [9.5, 34, 9.5] },
+  { modele: "rocher-1", position: [852, 891], echelle: 3.7 },
+  { modele: "rocher-2", position: [840, 895], echelle: 4.8 },
+  { modele: "rocher-3", position: [848, 881], echelle: 5.8 },
+  { modele: "moulin", echelle: 2.5, position: [764, 805], angle: 0, plateforme: 10, solide: [9.5, 34, 9.5] },
+  { modele: "rocher-1", position: [771, 808], echelle: 3.7 },
+  { modele: "rocher-2", position: [759, 812], echelle: 4.8 },
+  { modele: "rocher-3", position: [767, 798], echelle: 5.8 },
+  { modele: "moulin", echelle: 2.5, position: [796, 751], angle: 40, plateforme: 10, solide: [9.5, 34, 9.5] },
+  { modele: "rocher-1", position: [803, 754], echelle: 3.7 },
+  { modele: "rocher-2", position: [791, 758], echelle: 4.8 },
+  { modele: "rocher-3", position: [799, 744], echelle: 5.8 },
+  { modele: "moulin", echelle: 2.5, position: [873, 734], angle: 100, plateforme: 10, solide: [9.5, 34, 9.5] },
+  { modele: "rocher-1", position: [880, 737], echelle: 3.7 },
+  { modele: "rocher-2", position: [868, 741], echelle: 4.8 },
+  { modele: "rocher-3", position: [876, 727], echelle: 5.8 },
   { modele: "banniere-vent", echelle: 1.25, position: [875, 811], angle: 112 },
   { modele: "banniere-vent", echelle: 1.25, position: [866, 820], angle: 158 },
   { modele: "banniere-vent", echelle: 1.25, position: [854, 820], angle: 202 },
@@ -820,7 +797,7 @@ export const DECORS: DecorUnique[] = [
   { modele: "caisse", position: [871, 792], angle: 130 },
   { modele: "lanterne", position: [876, 799], angle: 160 },
   // Landes roses : le phare sur le cap, des bottes de foin, une charrette.
-  { modele: "phare", position: [1405, 620], angle: 180, plateforme: 5, solide: [4, 16, 4] },
+  { modele: "phare", echelle: 2.4, position: [1405, 620], angle: 180, plateforme: 10, solide: [8, 38, 8] },
   { modele: "charrette", position: [1352, 636], angle: 200 },
   { modele: "botte-foin", position: [1330, 620] },
   { modele: "botte-foin", position: [1331, 622] },
@@ -912,19 +889,6 @@ export const DECORS: DecorUnique[] = [
   { modele: "monastere-glace", position: [781, 252], angle: 260, plateforme: 14, solide: [24, 28, 12] },
   { modele: "lanterne", position: [779, 266] },
   { modele: "lanterne", position: [784, 266] },
-
-  // La Forge-sous-Cendre : des maisons taillées en terrasses dans le flanc du volcan (le flanc est
-  // trop raide pour un village sur un sol commun), des forges, des braseros et de la lave.
-  { modele: "maison-volcan-1", position: [446, 96], angle: 100, solide: [9, 9.6, 6.4] },
-  { modele: "maison-volcan-3", position: [454, 104], angle: 80, solide: [6, 12.6, 6.4] },
-  { modele: "maison-volcan-1", position: [440, 90], angle: 90, solide: [9, 9.6, 6.4] },
-  { modele: "enclume", position: [440, 101], solide: [1.4, 1.5, 1.3] },
-  { modele: "brasero", position: [442, 103] },
-  { modele: "enclume", position: [447, 103], angle: 60, solide: [1.4, 1.5, 1.3] },
-  { modele: "brasero", position: [438, 97] },
-  { modele: "brasero", position: [447, 104] },
-  { modele: "tonneau", position: [437, 100], solide: [1.3, 1.2, 1.3] },
-  { modele: "caisse", position: [449, 99], angle: 40, solide: [1.2, 0.8, 1.4] },
 
   // Le Hameau des Pêcheurs : pontons et barques dans la crique, filets (foin), tonneaux.
   { modele: "ponton", position: [1030, 684], angle: 0, flotte: true },
@@ -1040,10 +1004,6 @@ export const CHEMINS: Chemin[] = [
   // Des Terres rougies à la chapelle d'Elcres abandonnée : la rue du bourg.
   { id: "rue-elcres", points: [[1165, 300], [1152, 262], [1146, 236], [1139, 214], [1141, 195], [1150, 182]], largeur: 4, lanternes: 22 },
   ...cheminsDuLabyrinthe(),
-  // Du pont à la Forge-sous-Cendre : la montée la plus douce.
-  { id: "montee-forge", points: [[424, 110], [433, 109], [440, 106], [444, 101]], largeur: 3 },
-  // Lave de la Forge-sous-Cendre, qui descend vers la mer.
-  { id: "lave-forge", points: [[452, 104], [460, 110], [466, 114]], largeur: 3, matiere: "lave" },
   {
     // Du Village blanc au Hameau des Pêcheurs, par la côte.
     id: "chemin-pecheurs",
@@ -1104,7 +1064,7 @@ export const CHEMINS: Chemin[] = [
     largeur: 3,
   },
   {
-    // Du port de la Corne à la cité volcanique, en contournant les Hautes montagnes.
+    // Du port de la Corne à la cité volcanique, par le nord.
     id: "route-corne",
     points: [[138, 309], [135, 283], [119, 235], [125, 209], [139, 196], [140, 158], [145, 133], [149, 129], [155, 128], [171, 129], [199, 107], [214, 105], [230, 97], [247, 96], [253, 82], [268, 80], [284, 89], [295, 91], [304, 99], [310, 111], [312, 132], [321, 142], [326, 144], [326, 154], [338, 170], [338, 187], [328, 213], [328, 223], [338, 233], [353, 235], [360, 244], [370, 250], [380, 250], [399, 238], [424, 239]],
     largeur: 5,

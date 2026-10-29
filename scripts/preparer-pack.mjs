@@ -188,7 +188,8 @@ function moulin() {
     const mur = e === 0 ? "wall" : "wall-wood";
     pieces.push(p(mur + (e === 0 ? "-door" : ""), [0, e, 0], -D), p(mur, [0, e, 0], D), p(mur + (e === 1 ? "-window-small" : ""), [0, e, 0], 0), p(mur, [0, e, 0], 2 * D));
   }
-  pieces.push({ ...p("roof-high-point", [0, 3, 0], 0, [1.15, 1.6, 1.15]), couleur: "#b08a3e" }, p("windmill", [0, 2.55, 0.72], D));
+  // Les ailes (town:windmill) sont un modèle à part, « ailes-moulin », que le jeu fait tourner.
+  pieces.push({ ...p("roof-high-point", [0, 3, 0], 0, [1.15, 1.6, 1.15]), couleur: "#b08a3e" });
   return pieces;
 }
 
@@ -366,6 +367,8 @@ const RECETTES = {
   "maison-bois-3": { pieces: maison({ largeur: 3, etages: 1, bas: "wall", toit: "roof", couleurToit: "#2f5c9a", cheminee: false }), echelle: TUILE, palette: PALETTE_VILLAGE },
   // Cité du vent : moulins sur les rochers, bannières claquant au vent.
   moulin: { pieces: moulin(), echelle: TUILE, couleurs: MURS_VENT },
+  // Origine au moyeu, axe de rotation selon Z : posées à (0, 2.55, 0.72) tuiles sur le moulin.
+  "ailes-moulin": { pieces: [{ source: "town:windmill", pos: [0, 0, 0], rot: Math.PI / 2, echelle: [1, 1, 1] }], echelle: TUILE, couleurs: MURS_VENT, centrer: true },
   "banniere-vent": { sources: ["town:banner-red"], hauteur: 4.5, couleurs: { colormap: "#c9a050" } },
   ponton: { sources: ["pirate:structure-platform-dock"], largeur: 5 },
 
@@ -536,7 +539,9 @@ for (const [nom, r] of Object.entries(RECETTES)) {
   const b = getBounds(scene);
   const taille = r.echelle ?? (r.hauteur ? r.hauteur / (b.max[1] - b.min[1]) : r.largeur / Math.max(b.max[0] - b.min[0], b.max[2] - b.min[2]));
   pivot.setScale([taille, taille, taille]);
-  pivot.setTranslation([-((b.min[0] + b.max[0]) / 2) * taille, -b.min[1] * taille - ENFONCEMENT, -((b.min[2] + b.max[2]) / 2) * taille]);
+  // `centrer` : l'origine au centre du modèle (une pièce qui tourne), sinon à son pied.
+  const pied = r.centrer ? -((b.min[1] + b.max[1]) / 2) * taille : -b.min[1] * taille - ENFONCEMENT;
+  pivot.setTranslation([-((b.min[0] + b.max[0]) / 2) * taille, pied, -((b.min[2] + b.max[2]) / 2) * taille]);
 
   for (const n of racine.listNodes()) if (!n.getMesh() && !n.listChildren().length && n !== pivot) n.dispose();
   await io.write(join(sortie, `${nom}.glb`), doc);

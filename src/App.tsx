@@ -11,10 +11,12 @@ import { LEGER } from "./qualite";
 import { preparerCarte } from "./ui/Carte";
 import { Interface } from "./ui/Interface";
 import { RegardTactile, TACTILE } from "./ui/Tactile";
-import { Atmosphere, SOLEIL } from "./world/Atmosphere";
+import { ASTRE, Atmosphere, COULEUR_ASTRE } from "./world/Atmosphere";
+import { Sons } from "./world/Sons";
 import { Barrieres } from "./world/Barrieres";
 import { bornes, carteComprise, chargerCarte, MER, regionA, versMonde } from "./world/carte";
 import { REGIONS } from "./content/monde";
+import { positionJoueur } from "./game/joueur";
 import { useJeu } from "./game/store";
 import { hauteurSol } from "./world/relief";
 import { Decor } from "./world/Decor";
@@ -73,6 +75,8 @@ export default function App() {
           // versMonde([px, py]) : pixels de la carte → mètres (utilisé par scripts/photos.mjs).
           w.versMonde = versMonde;
           w.hauteurSol = hauteurSol;
+          // positionJoueur : ce qui ne se dessine que près du joueur (moutons, oiseaux…) suit ce point.
+          w.positionJoueur = positionJoueur;
           // hauteurEn(px, py) : altitude du sol à cet endroit de la carte.
           w.hauteurEn = (px: number, py: number) => hauteurSol(...versMonde([px, py]));
           // regionEn(px, py) : nom de la région à cet endroit de la carte.
@@ -94,7 +98,9 @@ export default function App() {
 function DisqueSoleil({ disque, pret }: { disque: RefObject<THREE.Mesh | null>; pret: () => void }) {
   useEffect(pret, [pret]);
   useFrame(({ camera }) => {
-    disque.current?.position.copy(camera.position).addScaledVector(SOLEIL, 2500);
+    if (!disque.current) return;
+    disque.current.position.copy(camera.position).addScaledVector(ASTRE, 2500);
+    (disque.current.material as THREE.MeshBasicMaterial).color.copy(COULEUR_ASTRE);
   });
   return (
     <mesh ref={disque}>
@@ -160,6 +166,7 @@ function Monde() {
             <Decor />
             <Objets />
             {!VUE && <Joueur />}
+            {!VUE && <Sons />}
           {TACTILE && <RegardTactile />}
           </Physics>
           <ObjetEnMain />

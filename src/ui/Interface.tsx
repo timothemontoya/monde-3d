@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { INDICES, LIEUX, OBJETS, REGIONS, SUCCES, USAGES } from "../content/monde";
 import { positionJoueur } from "../game/joueur";
+import { basculerSon, sonCoupe } from "../game/son";
 import { enigmeParId, indiceParId, normaliser, objetParId, portParId, remplie, useJeu } from "../game/store";
 import { capturerSouris, teleporterVers } from "../player/Joueur";
 import { CommandesTactiles, TACTILE } from "./Tactile";
@@ -22,6 +23,7 @@ function reprendre() {
 function EcranTitre() {
   const { lieux, entrer, ouvrir, reinitialiser } = useJeu();
   const dejaCommence = lieux.length > 0;
+  const [coupe, setCoupe] = useState(sonCoupe);
   return (
     <div className="ecran-titre">
       <div className="titre-bloc">
@@ -37,6 +39,11 @@ function EcranTitre() {
         >
           {dejaCommence ? "Reprendre l'exploration" : "Entrer dans le monde"}
         </button>
+        <div className="boutons-secondaires">
+          <button className="bouton" onClick={() => setCoupe(basculerSon())}>
+            {coupe ? "Son : coupé" : "Son : activé"}
+          </button>
+        </div>
         {dejaCommence && (
           <div className="boutons-secondaires">
             <button className="bouton" onClick={() => ouvrir({ type: "journal", onglet: "carte" })}>
@@ -68,6 +75,7 @@ function EcranTitre() {
         <li><kbd>1</kbd>…<kbd>8</kbd> prendre un objet en main</li>
         <li><kbd>F</kbd> utiliser l'objet</li>
         <li><kbd>Tab</kbd> journal</li>
+        <li><kbd>M</kbd> couper le son</li>
         <li><kbd>Échap</kbd> pause</li>
       </ul>
     </div>
@@ -332,6 +340,8 @@ function useRaccourcis() {
         const liste = OBJETS.filter((o) => s.objets.includes(o.id));
         const objet = liste[Number(e.code.slice(5)) - 1];
         if (objet) s.tenir(objet.id);
+      } else if (e.code === "KeyM") {
+        s.notifier(basculerSon() ? "Son coupé" : "Son rétabli", "M pour changer");
       } else if (e.key === "Tab") {
         e.preventDefault();
         if (s.panneau?.type === "journal") reprendre();

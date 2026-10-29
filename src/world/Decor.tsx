@@ -5,12 +5,15 @@ import * as THREE from "three";
 import { BARRIERES, BOIS as BOIS_DESSINES, LABYRINTHE, REGIONS, VILLAGES, VOLCANS } from "../content/monde";
 import type { DecorUnique, Vegetation as TypeVegetation } from "../content/types";
 import { barriereOuverte, useJeu } from "../game/store";
+import { ciel } from "../game/temps";
 import { LEGER } from "../qualite";
 import { BrumeSorcieres } from "./BrumeSorcieres";
 import { rotationFace } from "./geometrie";
 import { Guirlandes } from "./Guirlandes";
 import { Herbe } from "./Herbe";
 import { Labyrinthe } from "./Labyrinthe";
+import { Faune } from "./Faune";
+import { Oiseaux } from "./Oiseaux";
 import { Fumees, Halos, LUEURS } from "./Lueurs";
 import { centreCellule, indiceCellule, laCarte, MER, regionA, versCarte, versMonde } from "./carte";
 import { Chemins } from "./Chemins";
@@ -890,6 +893,8 @@ function DecorsUniques() {
           provisoire={d.def.substitut && <MaisonProvisoire substitut={d.def.substitut} />}
         />
       ))}
+      <AilesMoulins moulins={decors.filter((d) => d.def.modele === "moulin")} />
+      <FaisceauxPhares phares={decors.filter((d) => d.def.modele === "phare")} />
       {lueurs.map((l) => (
         <Halos key={l.modele} positions={l.positions} couleur={l.couleur} taille={l.taille} />
       ))}
@@ -901,6 +906,96 @@ function DecorsUniques() {
             return <CuboidCollider key={i} args={[l / 2, h / 2, p / 2]} position={[d.x, d.y + h / 2, d.z]} rotation={[0, d.rot, 0]} />;
           })}
       </RigidBody>
+    </>
+  );
+}
+
+/** Moyeu des ailes sur le modèle « moulin » (m, à l'échelle 1) : voir moulin() dans preparer-pack.mjs. */
+const MOYEU: [number, number, number] = [0, 7.5, 2.16];
+
+/** Les ailes de chaque moulin tournent lentement, chacune à son rythme. */
+function AilesMoulins({ moulins }: { moulins: ReturnType<typeof lePlan>["decors"] }) {
+  const ailes = useRef<(THREE.Group | null)[]>([]);
+  useFrame((_, delta) => {
+    ailes.current.forEach((a, i) => {
+      if (a) a.rotation.z -= delta * (0.35 + 0.1 * Math.sin(i * 2.3));
+    });
+  });
+  return (
+    <>
+      {moulins.map((d, i) => (
+        <group key={i} position={[d.x, d.y, d.z]} rotation-y={d.rot} scale={d.def.echelle ?? 1}>
+          <group
+            ref={(g) => {
+              ailes.current[i] = g;
+            }}
+            position={MOYEU}
+            rotation-z={i * 0.7}
+          >
+            <Modele modele="ailes-moulin" />
+          </group>
+        </group>
+      ))}
+    </>
+  );
+}
+
+/** La nuit, le phare balaie la mer de deux faisceaux qui tournent. */
+function FaisceauxPhares({ phares }: { phares: ReturnType<typeof lePlan>["decors"] }) {
+  const tetes = useRef<(THREE.Group | null)[]>([]);
+  const { geometrie, materiau } = useMemo(() => {
+    // Un cône ouvert, couché : sa pointe à l'origine (la lanterne), il s'élargit vers +X.
+    const g = new THREE.CylinderGeometry(0.4, 10, 170, 20, 1, true);
+    g.translate(0, -85, 0);
+    g.rotateZ(Math.PI / 2);
+    // Un voile : plus clair au cœur du faisceau (face à nous) qu'à ses bords, et qui s'efface au loin.
+    const m = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      uniforms: { uForce: { value: 0 }, uCouleur: { value: new THREE.Color("#ffe2a0") } },
+      vertexShader: /* glsl */ `
+        varying float vLoin;
+        varying float vFace;
+        void main() {
+          vLoin = clamp(position.x / 170.0, 0.0, 1.0);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vec3 n = normalize(normalMatrix * normal);
+          vFace = abs(dot(n, normalize(-mv.xyz)));
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform float uForce;
+        uniform vec3 uCouleur;
+        varying float vLoin;
+        varying float vFace;
+        void main() {
+          float a = uForce * vFace * vFace * (1.0 - vLoin);
+          gl_FragColor = vec4(uCouleur * a, a);
+        }`,
+    });
+    return { geometrie: g, materiau: m };
+  }, []);
+  useFrame((_, delta) => {
+    const force = 0.5 * THREE.MathUtils.smoothstep(1 - ciel.jour, 0.3, 0.9);
+    materiau.uniforms.uForce.value = force;
+    for (const t of tetes.current) if (t) (t.rotation.y += delta * 0.6), (t.visible = force > 0.005);
+  });
+  return (
+    <>
+      {phares.map((d, i) => (
+        <group
+          key={i}
+          ref={(g) => {
+            tetes.current[i] = g;
+          }}
+          position={[d.x, d.y + LUEURS.phare.hauteur * (d.def.echelle ?? 1), d.z]}
+        >
+          <mesh geometry={geometrie} material={materiau} rotation-z={-0.04} />
+          <mesh geometry={geometrie} material={materiau} rotation-y={Math.PI} rotation-z={-0.04} />
+        </group>
+      ))}
     </>
   );
 }
@@ -930,6 +1025,8 @@ export function Decor() {
       <PortailRunique />
       <Fracture />
       <Guirlandes />
+      <Oiseaux />
+      <Faune />
       <Lave />
       <DecorsUniques />
       <Fumees />

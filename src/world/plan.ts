@@ -296,7 +296,6 @@ const GARNITURES: Record<string, string[]> = {
   "campement-sorcieres": ["chaudron", "citrouille", "citrouille", "champignon-1", "champignon-2"],
   "bourg-egares": ["tonneau", "caisse", "botte-foin", "seau", "coffre", "buisson-1", "citrouille"],
   "hameau-pecheurs": ["tonneau", "caisse", "seau", "botte-foin", "barque-rames"],
-  "forge-sous-cendre": ["tonneau", "caisse", "brasero", "enclume"],
   "hameau-landes": ["botte-foin", "tonneau", "seau", "buisson-1", "cloture"],
   "village-du-bois": ["tonneau", "seau", "buisson-1", "buisson-2", "lanterne"],
   "bourg-elcres": ["tonneau", "caisse", "seau", "souche", "buisson-2"],

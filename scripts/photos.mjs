@@ -90,6 +90,8 @@ try {
         jeu.setState({ entrerDans: () => {}, regionActuelle: region === "mer" ? null : region });
         const [x, z] = versMonde([${px}, ${py}]);
         const y = hauteurEn(${px}, ${py});
+        // Ce qui ne se dessine qu'autour du joueur (moutons, oiseaux…) : autour du point visé.
+        if (window.positionJoueur) Object.assign(window.positionJoueur, { x, z });
         const a = ${azimut} * Math.PI / 180;
         cam.position.x = x + Math.cos(a) * ${distance};
         cam.position.y = y + ${hauteur};

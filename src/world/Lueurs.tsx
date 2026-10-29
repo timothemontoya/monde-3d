@@ -1,6 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { ciel } from "../game/temps";
 import { lePlan } from "./plan";
 
 // Fumée des cheminées et halos des lanternes : des disques flous dessinés en une seule fois
@@ -79,6 +80,10 @@ const CHEMINEES: Record<string, [number, number, number]> = {
   "hutte-sorciere-2": [2.16, 5.85, -1.35],
   "cahute-maitre": [5.16, 8.85, -1.35],
   "demeure-volcan": [5.16, 9.45, -1.35],
+  "chaumiere-1": [3.66, 6.45, -1.35],
+  "chaumiere-2": [2.16, 6.45, -1.35],
+  "maison-bois-1": [3.66, 6.45, -1.35],
+  "maison-bois-2": [2.16, 6.45, -1.35],
 };
 /** Bouffées par cheminée, hauteur de montée (m) et durée d'une bouffée (s). */
 const BOUFFEES = 5;
@@ -103,8 +108,11 @@ export function Fumees() {
   }, []);
   const points = useNuage(cheminees.length * BOUFFEES, "#cfc7ba", false);
   useEchelle(points);
+  const [clair, sombre] = useMemo(() => [new THREE.Color("#cfc7ba"), new THREE.Color("#2e3340")], []);
   useFrame((state) => {
     const t = state.clock.elapsedTime;
+    // La nuit, la fumée n'est plus éclairée : elle s'assombrit.
+    (points.material as THREE.ShaderMaterial).uniforms.uCouleur.value.copy(clair).lerp(sombre, 1 - ciel.jour);
     const g = points.geometry;
     const [pos, taille, alpha] = ["position", "aTaille", "aAlpha"].map((a) => g.getAttribute(a) as THREE.BufferAttribute);
     cheminees.forEach(([x, y, z], i) => {
@@ -136,7 +144,7 @@ export const LUEURS: Record<string, { hauteur: number; couleur: string; taille: 
   "champignon-2": { hauteur: 0.5, couleur: "#b07aff", taille: 1.2 },
   chaudron: { hauteur: 1.1, couleur: "#7dff7a", taille: 2 },
   "monastere-glace": { hauteur: 9, couleur: "#7fd4ff", taille: 14 },
-  phare: { hauteur: 14.2, couleur: "#ffd890", taille: 10 },
+  phare: { hauteur: 14.2, couleur: "#ffd890", taille: 26 },
 };
 
 /** Halo autour des sources de lumière : une lueur douce, que le bloom fait briller. */

@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { VILLAGES } from "../content/monde";
 import { bornes, laCarte, versMonde } from "./carte";
 import { FOND_MARIN, NEIGE, SABLE, texturesSol } from "./couleurs";
+import { ciel } from "../game/temps";
 import { SOLEIL } from "./Atmosphere";
 import { texturesTraces } from "./Chemins";
 import { hauteurTerrain, NIVEAU_MER } from "./relief";
@@ -423,10 +424,11 @@ function materiauEau() {
         uProfondeur: { value: null },
         uTaille: { value: new THREE.Vector2(c.largeur * c.pas, c.hauteur * c.pas) },
         uTemps: { value: 0 },
-        uSoleil: { value: SOLEIL.clone() },
+        uSoleil: { value: SOLEIL },
         uClair: { value: new THREE.Color("#5cbdb3") },
         uMoyen: { value: new THREE.Color("#2a7e94") },
         uProfond: { value: new THREE.Color("#1b4a62") },
+        uJour: { value: 1 },
       },
     ]),
     vertexShader: /* glsl */ `
@@ -444,6 +446,7 @@ function materiauEau() {
       uniform vec2 uTaille;
       uniform float uTemps;
       uniform vec3 uSoleil, uClair, uMoyen, uProfond;
+      uniform float uJour;
       varying vec3 vMonde;
       #include <fog_pars_fragment>
       void main() {
@@ -460,11 +463,13 @@ function materiauEau() {
           cos(p.y * 0.19 + uTemps * 0.9) * 0.06 + sin(p.x * 0.33 + p.y * 0.12 + uTemps * 1.3) * 0.05));
         vec3 vue = normalize(cameraPosition - vMonde);
         float reflet = pow(max(dot(reflect(-uSoleil, n), vue), 0.0), 90.0);
-        c += vec3(1.0, 0.95, 0.85) * reflet * 0.9;
+        // La nuit : une eau sombre, où la lune se reflète d'un éclat bleuté.
+        c *= mix(vec3(0.12, 0.16, 0.26), vec3(1.0), uJour);
+        c += mix(vec3(0.55, 0.65, 0.9), vec3(1.0, 0.95, 0.85), uJour) * reflet * 0.9;
         // Écume : une bande claire au rivage, qui va et vient.
         float vague = 0.5 + 0.5 * sin(d * 5.0 - uTemps * 1.6 + sin(p.x * 0.05 + p.y * 0.04) * 3.0);
         float ecume = (1.0 - smoothstep(0.0, 0.7, d)) + (1.0 - smoothstep(0.6, 1.6, d)) * smoothstep(0.75, 0.95, vague) * 0.8;
-        c = mix(c, vec3(0.97, 0.98, 0.96), clamp(ecume, 0.0, 1.0) * 0.85);
+        c = mix(c, vec3(0.97, 0.98, 0.96) * mix(0.2, 1.0, uJour), clamp(ecume, 0.0, 1.0) * 0.85);
         gl_FragColor = vec4(c, mix(0.72, 0.95, smoothstep(0.3, 8.0, d)));
         #include <colorspace_fragment>
         #include <fog_fragment>
@@ -481,6 +486,7 @@ export function Eau() {
   }, []);
   useFrame((state) => {
     materiau.uniforms.uTemps.value = state.clock.elapsedTime;
+    materiau.uniforms.uJour.value = ciel.jour;
   });
   return (
     <>

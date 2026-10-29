@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { createNoise2D } from "simplex-noise";
 import { REGIONS, VILLAGES } from "../content/monde";
 import { LEGER } from "../qualite";
+import { ciel } from "../game/temps";
 import { SOLEIL } from "./Atmosphere";
 import { laCarte, MER, regionA, versMonde } from "./carte";
 import { texturesSol } from "./couleurs";
@@ -87,7 +88,8 @@ function materiauHerbe() {
         uTaille: { value: new THREE.Vector2(c.largeur * c.pas, c.hauteur * c.pas) },
         uTemps: { value: 0 },
         uCentre: { value: new THREE.Vector2() },
-        uSoleil: { value: SOLEIL.clone() },
+        uSoleil: { value: SOLEIL },
+        uJour: { value: 1 },
       },
     ]),
     vertexShader: /* glsl */ `
@@ -121,6 +123,7 @@ function materiauHerbe() {
       uniform sampler2D uHerbe;
       uniform vec2 uTaille;
       uniform vec3 uSoleil;
+      uniform float uJour;
       varying float vHaut;
       varying float vTeinte;
       varying vec3 vMonde;
@@ -131,6 +134,8 @@ function materiauHerbe() {
         vec3 c = mix(herbe * 0.55, herbe * 1.25 + vec3(0.06, 0.05, 0.0), vHaut);
         c *= 0.85 + 0.3 * vTeinte;
         c *= 0.75 + 0.35 * max(uSoleil.y, 0.0);
+        // La nuit, l'herbe (qui n'est pas éclairée par la scène) s'assombrit et bleuit sous la lune.
+        c = mix(c * vec3(0.16, 0.2, 0.3), c, uJour);
         gl_FragColor = vec4(c, 1.0);
         #include <colorspace_fragment>
         #include <fog_fragment>
@@ -206,6 +211,7 @@ export function Herbe() {
 
   useFrame((state) => {
     materiau.uniforms.uTemps.value = state.clock.elapsedTime;
+    materiau.uniforms.uJour.value = ciel.jour;
     const { x, z } = state.camera.position;
     const d = dernier.current;
     if (!d || Math.hypot(d.x - x, d.z - z) > RECALCUL) {
