@@ -215,6 +215,7 @@ export function materiauRideau(t: TeintesRideau = VIOLET) {
         // Totalement opaque dans le bas, à peine moins vers le haut.
         float densite = mix(1.0, 0.82 + 0.18 * smoothstep(0.3, 0.7, n), smoothstep(0.2, 0.45, vHaut));
         // Un rideau plein : opaque jusqu'à son sommet effiloché (rien ne transparaît derrière).
+        // Un rideau plein : opaque jusqu'à son sommet effiloché (rien ne transparaît derrière).
         densite = mix(densite, 1.0, uPlein);
         // Le haut du rideau s'effiloche, ses extrémités aussi.
         float haut = 1.0 - smoothstep(mix(0.25, 0.32, uPlein) + 0.25 * n, mix(0.9, 1.0, uPlein), vHaut);

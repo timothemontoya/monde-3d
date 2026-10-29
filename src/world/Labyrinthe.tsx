@@ -115,7 +115,7 @@ const AU_DELA_FIN = 2;
 const HAUTEUR_BRUME = 70;
 /** Depuis la stèle du bout, une trouée dans la brume laisse voir la Fracture d'or (demi-angle, en radians). */
 const STELE = "stele-fracture";
-const TROUEE = 0.4;
+const TROUEE = 0.55;
 
 /** Centre de la Fracture d'or (m) : la moyenne des cases de sa région. */
 function centreFracture(): [number, number] | null {
@@ -179,9 +179,14 @@ function BrumeLabyrinthe() {
   useFrame((state) => {
     const u = materiau.uniforms;
     u.uTemps.value = state.clock.elapsedTime;
-    // La nuit, la brume n'est plus éclairée : elle s'assombrit avec le reste.
+    // Elle prend la teinte de la brume ambiante (rose depuis les landes, verte dans le bois),
+    // et la nuit, n'étant plus éclairée, elle s'assombrit avec le reste.
     const k = 0.22 + 0.78 * ciel.jour;
-    [u.uSombre, u.uClair, u.uLueur].forEach((x, i) => x.value.copy(teintes[i]).multiplyScalar(k));
+    const ambiante = (state.scene.fog as THREE.FogExp2 | null)?.color;
+    [u.uSombre, u.uClair, u.uLueur].forEach((x, i) => {
+      x.value.copy(teintes[i]).multiplyScalar(k);
+      if (ambiante) x.value.lerp(ambiante, 0.5);
+    });
   });
   return (
     <>
