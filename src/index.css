@@ -52,6 +52,21 @@ kbd {
 /* Assombrit le centre juste assez pour lire le titre et les boutons. */
 .ft-voile { position: absolute; inset: 0; background: radial-gradient(ellipse 55% 50% at 50% 48%, rgba(8,6,12,0.55), transparent 75%),
   linear-gradient(180deg, transparent 60%, rgba(8,6,12,0.6)); }
+/* Entrée dans le monde (clic sur « Entrer ») */
+.entree { position: absolute; inset: 0; z-index: 40; overflow: hidden; pointer-events: none; animation: entree-ouvre 2.2s ease-in forwards; }
+.entree .fond-titre { animation: entree-plonge 2.2s cubic-bezier(0.55, 0, 0.75, 0.4) forwards; transform-origin: 50% 62%; }
+.entree-nom { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-62%); text-align: center;
+  animation: entree-nom 1.3s ease-in forwards; }
+.entree-nom h1 { font-family: var(--titre); font-weight: 400; font-size: clamp(2.8rem, 7vw, 5.5rem); margin: 0.6rem 0 0;
+  color: var(--or-pale); letter-spacing: 0.08em; text-shadow: 0 0 40px rgba(255, 190, 90, 0.5); }
+.entree-lumiere { position: absolute; inset: 0; opacity: 0; animation: entree-lumiere 2.2s ease-in-out forwards;
+  background: radial-gradient(circle at 50% 62%, #fff6dc 0%, #ffd98a 30%, rgba(255,170,80,0.85) 60%, rgba(255,150,60,0.6) 100%); }
+@keyframes entree-plonge { from { transform: scale(1); filter: brightness(1); } to { transform: scale(2.6); filter: brightness(1.8); } }
+@keyframes entree-nom { to { transform: translateY(-120%) scale(1.15); letter-spacing: 0.4em; opacity: 0; filter: blur(4px); } }
+@keyframes entree-lumiere { 0% { opacity: 0; } 50% { opacity: 1; } 62% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes entree-ouvre { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .entree { animation-duration: 0.4s; } .entree * { animation: none !important; } }
+
 @keyframes scintille { from { opacity: 0.25; } to { opacity: 1; } }
 @keyframes respire { from { transform: scale(0.96); opacity: 0.85; } to { transform: scale(1.04); opacity: 1; } }
 @keyframes derive { from { transform: translateX(-14px); } to { transform: translateX(14px); } }

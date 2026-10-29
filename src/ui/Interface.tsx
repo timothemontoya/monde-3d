@@ -22,7 +22,24 @@ function reprendre() {
   if (s.enJeu) capturerSouris();
 }
 
-function EcranTitre() {
+/**
+ * Entrée dans le monde : le paysage de l'accueil s'approche du soleil, s'embrase de lumière dorée
+ * pendant que le nom s'élève et s'efface, puis la lumière s'ouvre sur le jeu.
+ */
+function Entree({ fin }: { fin: () => void }) {
+  return (
+    <div className="entree" onAnimationEnd={(e) => e.target === e.currentTarget && fin()}>
+      <FondTitre />
+      <div className="entree-nom">
+        <p className="sur-titre">Un monde à découvrir</p>
+        <h1>Aurelith</h1>
+      </div>
+      <div className="entree-lumiere" />
+    </div>
+  );
+}
+
+function EcranTitre({ partir }: { partir: () => void }) {
   const { lieux, entrer, ouvrir, reinitialiser } = useJeu();
   const dejaCommence = lieux.length > 0;
   return (
@@ -38,6 +55,7 @@ function EcranTitre() {
           <button
             className="bouton bouton-principal"
             onClick={() => {
+              partir();
               entrer();
               pleinEcranPaysage();
               capturerSouris();
@@ -435,6 +453,7 @@ export function Interface() {
   useRaccourcis();
   const { enJeu, panneau, fondu } = useJeu();
   const verrouille = usePointerLock();
+  const [entree, setEntree] = useState<number | null>(null);
   return (
     <div className="interface">
       {enJeu && !panneau && <ATH />}
@@ -444,7 +463,8 @@ export function Interface() {
           Cliquer pour reprendre
         </button>
       )}
-      {!enJeu && !panneau && <EcranTitre />}
+      {!enJeu && !panneau && <EcranTitre partir={() => setEntree(Date.now())} />}
+      {entree && <Entree key={entree} fin={() => setEntree(null)} />}
       {enJeu && <Banniere />}
       {enJeu && <PanneauLore />}
       <Notifications />
