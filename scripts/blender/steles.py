@@ -74,23 +74,30 @@ for a, b in [(0, 1), (1, 2), (2, 3), (3, 0)]:
     bm.faces.new([s[a], s[b], pointe]).material_index = 0
 # Bandeau sous la pointe.
 boite(bm, -L * 0.9, L * 0.9, -E * 0.95, E * 0.95, z - 0.18, z, 1)
-# Runes sur la façade (-Y) : un cercle brisé et des traits, en relief léger, qui luisent.
+# Gravures sur la façade (-Y), en relief léger, qui luisent : un éclat de cristal (losange allongé)
+# fendu d'une fissure en zigzag qui se ramifie, et des lignes d'inscription dessous.
 yf = -E * 0.93 - 0.02
-cx, cz, r = 0.0, 2.75, 0.42
-n = 14
-for i in range(n):
-    if i in (3, 10):
-        continue  # le cercle est brisé : la Fracture
-    a0, a1 = 2 * math.pi * i / n, 2 * math.pi * (i + 0.8) / n
-    p = [(cx + math.cos(a) * rr, yf, cz + math.sin(a) * rr) for a, rr in [(a0, r), (a1, r), (a1, r - 0.07), (a0, r - 0.07)]]
-    bm.faces.new([bm.verts.new(q) for q in p]).material_index = 2
-# Une fêlure qui traverse le cercle, et trois lignes d'inscription dessous.
-for x0, z0, x1, z1 in [(-0.12, 3.2, 0.05, 2.75), (0.05, 2.75, -0.08, 2.3), (-0.5, 1.9, 0.5, 1.9), (-0.45, 1.65, 0.3, 1.65), (-0.5, 1.4, 0.42, 1.4)]:
+
+
+def trait(x0, z0, x1, z1, epaisseur=0.035):
     dx, dz = x1 - x0, z1 - z0
     l = math.hypot(dx, dz)
-    nx, nz = -dz / l * 0.03, dx / l * 0.03
+    nx, nz = -dz / l * epaisseur, dx / l * epaisseur
     p = [(x0 + nx, yf, z0 + nz), (x1 + nx, yf, z1 + nz), (x1 - nx, yf, z1 - nz), (x0 - nx, yf, z0 - nz)]
     bm.faces.new([bm.verts.new(q) for q in p]).material_index = 2
+
+
+eclat = [(0.0, 3.45), (0.28, 3.0), (0.22, 2.35), (0.0, 2.05), (-0.22, 2.35), (-0.28, 3.0)]
+for i in range(len(eclat)):
+    (x0, z0), (x1, z1) = eclat[i], eclat[(i + 1) % len(eclat)]
+    trait(x0, z0, x1, z1)
+fissure = [(0.02, 3.55), (-0.08, 3.15), (0.07, 2.85), (-0.05, 2.55), (0.04, 2.2), (-0.02, 1.95)]
+for (x0, z0), (x1, z1) in zip(fissure, fissure[1:]):
+    trait(x0, z0, x1, z1, 0.028)
+for x0, z0, x1, z1 in [(0.07, 2.85, 0.4, 2.7), (-0.05, 2.55, -0.38, 2.42), (-0.08, 3.15, -0.36, 3.3)]:
+    trait(x0, z0, x1, z1, 0.02)
+for x0, z0, x1, z1 in [(-0.5, 1.65, 0.5, 1.65), (-0.45, 1.42, 0.3, 1.42), (-0.5, 1.19, 0.42, 1.19)]:
+    trait(x0, z0, x1, z1, 0.03)
 objet("stele", bm, [PIERRE, SOCLE, RUNES])
 
 
