@@ -27,38 +27,42 @@ function EcranTitre() {
   return (
     <div className="ecran-titre">
       <div className="titre-bloc">
-        <p className="sur-titre">Un monde à découvrir</p>
-        <h1>Aurelith</h1>
-        <div className="filet" />
-        <button
-          className="bouton bouton-principal"
-          onClick={() => {
-            entrer();
-            pleinEcranPaysage();
-            capturerSouris();
-          }}
-        >
-          {dejaCommence ? "Reprendre l'exploration" : "Entrer dans le monde"}
-        </button>
-        <div className="boutons-secondaires">
-          <button className="bouton" onClick={() => ouvrir({ type: "reglages" })}>
-            Réglages
+        <div className="titre-nom">
+          <p className="sur-titre">Un monde à découvrir</p>
+          <h1>Aurelith</h1>
+          <div className="filet" />
+        </div>
+        <div className="titre-actions">
+          <button
+            className="bouton bouton-principal"
+            onClick={() => {
+              entrer();
+              pleinEcranPaysage();
+              capturerSouris();
+            }}
+          >
+            {dejaCommence ? "Reprendre l'exploration" : "Entrer dans le monde"}
           </button>
-          {dejaCommence && (
-            <>
-              <button className="bouton" onClick={() => ouvrir({ type: "journal", onglet: "carte" })}>
-                Journal
-              </button>
-              <button
-                className="bouton"
-                onClick={() => {
-                  if (confirm("Effacer toute la progression ?")) reinitialiser();
-                }}
-              >
-                Recommencer
-              </button>
-            </>
-          )}
+          <div className="boutons-secondaires">
+            <button className="bouton" onClick={() => ouvrir({ type: "reglages" })}>
+              Réglages
+            </button>
+            {dejaCommence && (
+              <>
+                <button className="bouton" onClick={() => ouvrir({ type: "journal", onglet: "carte" })}>
+                  Journal
+                </button>
+                <button
+                  className="bouton"
+                  onClick={() => {
+                    if (confirm("Effacer toute la progression ?")) reinitialiser();
+                  }}
+                >
+                  Recommencer
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
       <ul className="commandes commandes-tactiles">

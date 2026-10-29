@@ -308,10 +308,31 @@ kbd {
 .tactile-actif .panneau-lore { left: calc(0.6rem + env(safe-area-inset-left)); top: 64px; transform: translate(-30px, 0); }
 .tactile-actif .panneau-lore.visible { transform: none; }
 .tactile-actif .viseur { display: none; }
+/* Écran titre en paysage : le nom au centre dans une lueur dorée, le menu dessous, l'aide tout en bas. */
 @media (max-height: 520px) {
-  .tactile-actif .ecran-titre { flex-direction: row; gap: 2.5rem; }
-  .tactile-actif .commandes.commandes-tactiles { flex-direction: column; align-items: flex-start; max-width: 16rem; font-size: 0.8rem; gap: 0.5rem; }
-  .tactile-actif .bouton { padding: 0.7rem 1.2rem; }
+  .tactile-actif .ecran-titre {
+    display: flex; flex-direction: column; justify-content: center; gap: 0;
+    padding: 1rem calc(1.5rem + env(safe-area-inset-right)) 0.8rem calc(1.5rem + env(safe-area-inset-left));
+    background: radial-gradient(ellipse 70% 80% at 50% 45%, rgba(8,7,5,0.35), rgba(8,7,5,0.85));
+  }
+  .tactile-actif .titre-nom { position: relative; }
+  .tactile-actif .titre-nom::before { content: ""; position: absolute; left: 50%; top: 55%; width: 30rem; height: 9rem; transform: translate(-50%, -50%);
+    background: radial-gradient(ellipse at center, rgba(255,190,90,0.18), transparent 70%); pointer-events: none; }
+  .tactile-actif .titre-nom .sur-titre { font-size: 0.68rem; letter-spacing: 0.5em; }
+  .tactile-actif .ecran-titre h1 { font-size: clamp(2.8rem, 10vh + 2vw, 4.6rem); margin: 0.3rem 0 0; line-height: 1; }
+  .tactile-actif .titre-nom .filet { margin: 0.9rem auto 1.3rem; width: min(360px, 50vw); }
+
+  .tactile-actif .titre-actions { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
+  .tactile-actif .titre-actions .boutons-secondaires { margin: 0; gap: 0.6rem; }
+  .tactile-actif .titre-actions .bouton { padding: 0.65rem 1.1rem; font-size: 0.72rem; background: rgba(10,9,7,0.6);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .tactile-actif .titre-actions .bouton-principal { min-width: 18rem; padding: 0.9rem 1.6rem; font-size: 0.85rem;
+    background: linear-gradient(180deg, rgba(90,66,26,0.8), rgba(40,30,12,0.8)); box-shadow: 0 0 24px rgba(217,181,106,0.28); }
+
+  /* L'aide : une ligne discrète en bas de l'écran. */
+  .tactile-actif .commandes.commandes-tactiles { position: absolute; left: 0; right: 0; bottom: 0.7rem; gap: 0 1.4rem; max-width: none;
+    font-size: 0.72rem; font-style: italic; opacity: 0.75; }
+  .tactile-actif .ecran-titre ~ .notifications { display: none; }
 }
 
 /* ─── Écran tactile : pas d'aide clavier ni de viseur ──────────────────── */
