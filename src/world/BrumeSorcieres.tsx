@@ -69,7 +69,8 @@ function contour(a: number, b: number[]) {
   return segments;
 }
 
-function geometrieRideau(segments: ReturnType<typeof contour>) {
+/** `hauteur` : hauteur du rideau au-dessus du sol (m) ; `fondu` : longueur où ses extrémités s'estompent (m). */
+export function geometrieRideau(segments: ReturnType<typeof contour>, hauteur = 30, fondu = FONDU_BOUTS) {
   // Normales moyennées aux sommets partagés : les couches décalées restent jointives.
   const normales = new Map<string, [number, number]>();
   const voisins = new Map<string, { cle: string; l: number }[]>();
@@ -89,7 +90,7 @@ function geometrieRideau(segments: ReturnType<typeof contour>) {
     const cle = file.shift()!;
     const d = auBout.get(cle)!;
     for (const v of voisins.get(cle)!) {
-      if (d + v.l >= (auBout.get(v.cle) ?? Infinity) || d + v.l > FONDU_BOUTS) continue;
+      if (d + v.l >= (auBout.get(v.cle) ?? Infinity) || d + v.l > fondu) continue;
       auBout.set(v.cle, d + v.l);
       file.push(v.cle);
     }
@@ -106,9 +107,9 @@ function geometrieRideau(segments: ReturnType<typeof contour>) {
         const x = p.x + (nx / l) * decalage;
         const z = p.z + (nz / l) * decalage;
         const sol = hauteurTerrain(x, z);
-        const f = Math.min(1, (auBout.get(p.cle) ?? FONDU_BOUTS) / FONDU_BOUTS);
+        const f = Math.min(1, (auBout.get(p.cle) ?? fondu) / fondu);
         // On ne vole qu'à 7 m du sol : 30 m de brume suffisent, sans dresser un mur visible de toute l'île.
-        return { x, z, bas: Math.min(sol, 0) - 6, haut: Math.max(sol + 30, 35), f };
+        return { x, z, bas: Math.min(sol, 0) - 6, haut: Math.max(sol + hauteur, hauteur + 5), f };
       });
       const [a, b] = coins;
       pos.push(a.x, a.bas, a.z, b.x, b.bas, b.z, b.x, b.haut, b.z, a.x, a.bas, a.z, b.x, b.haut, b.z, a.x, a.haut, a.z);
@@ -125,7 +126,11 @@ function geometrieRideau(segments: ReturnType<typeof contour>) {
   return g;
 }
 
-function materiauRideau() {
+/** Couleurs d'un rideau : creux des volutes, volutes, et reflets. */
+export type TeintesRideau = { sombre: string; clair: string; lueur: string };
+const VIOLET: TeintesRideau = { sombre: "#2c2238", clair: "#6d5b8c", lueur: "#a77ae8" };
+
+export function materiauRideau(t: TeintesRideau = VIOLET) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -136,9 +141,11 @@ function materiauRideau() {
       {
         uTemps: { value: 0 },
         uDisparition: { value: 0 },
-        uSombre: { value: new THREE.Color("#2c2238") },
-        uClair: { value: new THREE.Color("#6d5b8c") },
-        uLueur: { value: new THREE.Color("#a77ae8") },
+        uPlein: { value: 0 },
+        uSeuil: { value: 0 },
+        uSombre: { value: new THREE.Color(t.sombre) },
+        uClair: { value: new THREE.Color(t.clair) },
+        uLueur: { value: new THREE.Color(t.lueur) },
       },
     ]),
     vertexShader: /* glsl */ `
@@ -165,6 +172,8 @@ function materiauRideau() {
       #include <fog_pars_fragment>
       uniform float uTemps;
       uniform float uDisparition;
+      uniform float uPlein;
+      uniform float uSeuil;
       uniform vec3 uSombre;
       uniform vec3 uClair;
       uniform vec3 uLueur;
@@ -205,8 +214,10 @@ function materiauRideau() {
         float volutes = fbm3(p * 2.6 + n * 1.6);
         // Totalement opaque dans le bas, à peine moins vers le haut.
         float densite = mix(1.0, 0.82 + 0.18 * smoothstep(0.3, 0.7, n), smoothstep(0.2, 0.45, vHaut));
+        // Un rideau plein : opaque jusqu'à son sommet effiloché (rien ne transparaît derrière).
+        densite = mix(densite, 1.0, uPlein);
         // Le haut du rideau s'effiloche, ses extrémités aussi.
-        float haut = 1.0 - smoothstep(0.25 + 0.25 * n, 0.9, vHaut);
+        float haut = 1.0 - smoothstep(mix(0.25, 0.32, uPlein) + 0.25 * n, mix(0.9, 1.0, uPlein), vHaut);
         float bouts = smoothstep(0.0, 1.0, vBout * (0.7 + 0.6 * volutes));
         // De loin, il s'efface là où la brume du monde cache déjà tout (sinon : un bloc pâle sur le ciel).
         float loin = 1.0;
@@ -220,7 +231,13 @@ function materiauRideau() {
         #endif
         vec3 c = mix(uSombre, uClair, smoothstep(0.35, 0.85, volutes));
         c += uLueur * pow(max(volutes - 0.55, 0.0) * 2.2, 2.0) * 0.7;
-        gl_FragColor = vec4(c, densite * haut * bouts * loin * (1.0 - uDisparition));
+        float alpha = densite * haut * bouts * loin * (1.0 - uDisparition);
+        // Passe de profondeur : là où la brume est épaisse, elle cache aussi l'encre des contours de derrière.
+        if (alpha < uSeuil) discard;
+        // Dans la passe de profondeur, la profondeur fuit vers le lointain à mesure que la brume
+        // s'efface : pas de marche nette, donc pas de trait d'encre sur son bord effiloché.
+        gl_FragDepth = uSeuil > 0.0 ? mix(gl_FragCoord.z, 1.0, 1.0 - alpha) : gl_FragCoord.z;
+        gl_FragColor = vec4(c, alpha);
         #include <fog_fragment>
         #include <colorspace_fragment>
       }`,

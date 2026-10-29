@@ -1,9 +1,12 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { LABYRINTHE, REGIONS } from "../content/monde";
+import * as THREE from "three";
+import { INDICES, LABYRINTHE, REGIONS } from "../content/monde";
 import { useJeu } from "../game/store";
+import { ciel } from "../game/temps";
 import { teleporterVers } from "../player/Joueur";
-import { regionA, versMonde } from "./carte";
+import { laCarte, regionA, versMonde } from "./carte";
+import { geometrieRideau, materiauRideau } from "./BrumeSorcieres";
 import { Halos } from "./Lueurs";
 import { hauteurTerrain } from "./relief";
 
@@ -97,7 +100,95 @@ export function Labyrinthe() {
 
   // Le bon chemin de la salle en cours brille quand on tient l'objet.
   const lueurs = useLueurs(enMain === L.objet);
-  return <Halos positions={lueurs} couleur="#d8ff7a" taille={1.3} />;
+  return (
+    <>
+      <Halos positions={lueurs} couleur="#d8ff7a" taille={1.3} />
+      <BrumeLabyrinthe />
+    </>
+  );
+}
+
+/** Le rideau de brume se tient au-delà des lueurs du bon chemin (m), et autour du village du bout. */
+const AU_DELA_SALLE = 13;
+const AU_DELA_FIN = 2;
+/** Assez haute pour qu'aucun arbre ni toit ne dépasse (m). */
+const HAUTEUR_BRUME = 70;
+/** Depuis la stèle du bout, une trouée dans la brume laisse voir la Fracture d'or (demi-angle, en radians). */
+const STELE = "stele-fracture";
+const TROUEE = 0.4;
+
+/** Centre de la Fracture d'or (m) : la moyenne des cases de sa région. */
+function centreFracture(): [number, number] | null {
+  const c = laCarte();
+  const r = REGIONS.findIndex((x) => x.id === "fracture-or");
+  let [sx, sz, n] = [0, 0, 0];
+  for (let j = 0; j < c.hauteur; j++)
+    for (let i = 0; i < c.largeur; i++)
+      if (c.region[j * c.largeur + i] === r) [sx, sz, n] = [sx + i, sz + j, n + 1];
+  return n ? [(sx / n + 0.5 - c.largeur / 2) * c.pas, (sz / n + 0.5 - c.hauteur / 2) * c.pas] : null;
+}
+
+const COULEURS_BRUME = { sombre: "#93ad86", clair: "#e2efd2", lueur: "#f4ffd8" };
+
+/**
+ * Un anneau de brume opaque autour de chaque salle et du village du bout : de l'intérieur, on ne
+ * voit pas le reste de la forêt (ni le dehors) ; du dehors, on ne voit pas le village.
+ */
+function BrumeLabyrinthe() {
+  const geometrie = useMemo(() => {
+    const { salles, fin } = positions();
+    // Les anneaux ne doivent jamais se croiser : on verrait l'arête de l'un depuis l'autre.
+    const cercles = [...salles.map((s) => ({ m: s.m, r: s.rayon + AU_DELA_SALLE, i: 0.1 })), { m: fin.m, r: fin.rayon + AU_DELA_FIN, i: 0.06 }];
+    const stele = INDICES.find((x) => x.id === STELE);
+    const [px, pz] = stele ? versMonde(stele.position) : [0, 0];
+    const fracture = stele && centreFracture();
+    const versFracture = fracture ? Math.atan2(fracture[1] - pz, fracture[0] - px) : 0;
+    /** Ce bout d'anneau est-il dans l'axe de la stèle vers la Fracture ? */
+    const dansTrouee = (x: number, z: number) => !!fracture && Math.abs(Math.atan2(Math.sin(Math.atan2(z - pz, x - px) - versFracture), Math.cos(Math.atan2(z - pz, x - px) - versFracture))) < TROUEE;
+    const segments = cercles.flatMap(({ m: [cx, cz], r, i: irregulier }, k) => {
+      const n = Math.max(24, Math.round((2 * Math.PI * r) / 6));
+      // Un contour irrégulier : un banc de brume, pas un cylindre.
+      const point = (i: number) => {
+        const a = ((i % n) / n) * Math.PI * 2;
+        const rr = r * (1 + irregulier * Math.sin(3 * a + k) + irregulier * 0.5 * Math.sin(7 * a + 2 * k));
+        return { cle: `${k}:${i % n}`, x: cx + Math.cos(a) * rr, z: cz + Math.sin(a) * rr };
+      };
+      return Array.from({ length: n }, (_, i) => {
+        const a = ((i + 0.5) / n) * Math.PI * 2;
+        return { a: point(i), b: point(i + 1), nx: Math.cos(a), nz: Math.sin(a) };
+      }).filter((sg) => k < salles.length || !dansTrouee((sg.a.x + sg.b.x) / 2, (sg.a.z + sg.b.z) / 2));
+    });
+    return geometrieRideau(segments, HAUTEUR_BRUME, 18);
+  }, []);
+  const materiau = useMemo(() => {
+    const m = materiauRideau(COULEURS_BRUME);
+    m.uniforms.uPlein.value = 1;
+    return m;
+  }, []);
+  // La même brume, invisible, écrit sa profondeur là où elle est épaisse : les contours à l'encre
+  // (qui lisent la profondeur) ne dessinent plus les arbres cachés derrière.
+  const profondeur = useMemo(() => {
+    const m = materiau.clone();
+    m.uniforms = materiau.uniforms;
+    m.transparent = false;
+    m.depthWrite = true;
+    m.colorWrite = false;
+    return m;
+  }, [materiau]);
+  const teintes = useMemo(() => Object.values(COULEURS_BRUME).map((c) => new THREE.Color(c)), []);
+  useFrame((state) => {
+    const u = materiau.uniforms;
+    u.uTemps.value = state.clock.elapsedTime;
+    // La nuit, la brume n'est plus éclairée : elle s'assombrit avec le reste.
+    const k = 0.22 + 0.78 * ciel.jour;
+    [u.uSombre, u.uClair, u.uLueur].forEach((x, i) => x.value.copy(teintes[i]).multiplyScalar(k));
+  });
+  return (
+    <>
+      <mesh geometry={geometrie} material={profondeur} onBeforeRender={() => (materiau.uniforms.uSeuil.value = 0.02)} onAfterRender={() => (materiau.uniforms.uSeuil.value = 0)} frustumCulled={false} />
+      <mesh geometry={geometrie} material={materiau} renderOrder={2} frustumCulled={false} />
+    </>
+  );
 }
 
 /** Des lueurs le long du bon chemin de chaque salle (toutes : on ne voit que celle où l'on est, dans la brume). */
