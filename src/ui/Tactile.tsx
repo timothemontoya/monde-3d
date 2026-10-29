@@ -1,7 +1,9 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState, type PointerEvent as PE, type ReactNode } from "react";
 import * as THREE from "three";
+import { useReglages } from "../game/reglages";
 import { useJeu } from "../game/store";
+import { IconeJournal, IconePause, IconeReglages } from "./Icones";
 
 // Commandes tactiles (téléphone, tablette) : un joystick à gauche pour marcher, glisser à droite pour
 // regarder, et des boutons. Elles envoient au jeu les mêmes touches que le clavier (ZQSD, Espace,
@@ -32,9 +34,10 @@ export function RegardTactile() {
   const euler = useRef(new THREE.Euler(0, 0, 0, "YXZ"));
   useFrame(() => {
     if (!regard.dx && !regard.dy) return;
+    const k = SENSIBILITE * useReglages.getState().sensibilite;
     const e = euler.current.setFromQuaternion(camera.quaternion);
-    e.y -= regard.dx * SENSIBILITE;
-    e.x = Math.max(-1.45, Math.min(1.45, e.x - regard.dy * SENSIBILITE));
+    e.y -= regard.dx * k;
+    e.x = Math.max(-1.45, Math.min(1.45, e.x - regard.dy * k));
     camera.quaternion.setFromEuler(e);
     regard.dx = regard.dy = 0;
   });
@@ -99,9 +102,22 @@ function Joystick() {
         tenir(new Set());
       }}
     >
-      {centre && (
-        <div className="tactile-socle" style={{ left: centre.x - RAYON, top: centre.y - RAYON, width: RAYON * 2, height: RAYON * 2 }}>
+      {centre ? (
+        <div
+          className="tactile-socle"
+          style={{
+            left: centre.x - RAYON,
+            top: centre.y - RAYON,
+            width: RAYON * 2,
+            height: RAYON * 2,
+          }}
+        >
           <div className="tactile-bouton-joystick" style={{ transform: `translate(${bouton.x}px, ${bouton.y}px)` }} />
+        </div>
+      ) : (
+        // Au repos : un socle pâle montre où poser le pouce.
+        <div className="tactile-socle tactile-repos" style={{ width: RAYON * 2, height: RAYON * 2 }}>
+          <div className="tactile-bouton-joystick" />
         </div>
       )}
     </div>
@@ -153,29 +169,34 @@ function Touche({ code, tenue = false, children, className = "" }: { code: strin
 
 /** Les commandes tactiles, par-dessus le jeu, quand on joue. */
 export function CommandesTactiles() {
-  const { enJeu, panneau, fondu, vol, cible } = useJeu();
+  const { enJeu, panneau, fondu, vol, cible, enMain } = useJeu();
   if (!TACTILE || !enJeu || panneau || fondu) return null;
   return (
     <div className="tactile">
       <Joystick />
       <Regard />
+      {cible && (
+        <Touche code="KeyE" className="tactile-action">
+          {cible.type === "ramassable" ? "Ramasser" : cible.type === "port" ? "Embarquer" : "Examiner"}
+        </Touche>
+      )}
       <div className="tactile-boutons">
         {vol ? (
           <>
-            <Touche code="Space" tenue>
+            <Touche code="Space" tenue className="tactile-principal tb-principal">
               Monter
             </Touche>
-            <Touche code="KeyC" tenue>
+            <Touche code="KeyC" tenue className="tb-haut">
               Descendre
             </Touche>
           </>
         ) : (
-          <Touche code="Space" className="tactile-principal">
+          <Touche code="Space" className="tactile-principal tb-principal">
             Sauter
           </Touche>
         )}
         <button
-          className="tactile-touche"
+          className="tactile-touche tb-gauche"
           onPointerDown={(e) => {
             e.stopPropagation();
             // Deux appuis rapprochés sur Espace : voler, ou cesser de voler.
@@ -185,19 +206,51 @@ export function CommandesTactiles() {
         >
           {vol ? "Atterrir" : "Voler"}
         </button>
-        {cible && (
-          <Touche code="KeyE" className="tactile-principal">
-            {cible.type === "ramassable" ? "Ramasser" : cible.type === "port" ? "Embarquer" : "Examiner"}
+        {enMain && (
+          <Touche code="KeyF" className={vol ? "tb-diag" : "tb-haut"}>
+            Utiliser
           </Touche>
         )}
-        <Touche code="KeyF">Utiliser</Touche>
       </div>
       <div className="tactile-haut">
-        <Touche code="Tab">Journal</Touche>
-        <button className="tactile-touche" onClick={() => useJeu.getState().sortir()}>
-          Pause
+        <Touche code="Tab" className="tactile-rond">
+          <IconeJournal />
+        </Touche>
+        <button className="tactile-touche tactile-rond" onClick={() => useJeu.getState().ouvrir({ type: "reglages" })}>
+          <IconeReglages />
+        </button>
+        <button className="tactile-touche tactile-rond" onClick={() => useJeu.getState().sortir()}>
+          <IconePause />
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Passe en plein écran et bloque l'écran en paysage, là où le navigateur le permet (Android). */
+export function pleinEcranPaysage() {
+  if (!TACTILE) return;
+  const d = document.documentElement;
+  const verrouiller = () =>
+    (
+      screen.orientation as ScreenOrientation & {
+        lock?: (o: string) => Promise<void>;
+      }
+    )
+      .lock?.("landscape")
+      .catch(() => {});
+  if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen({ navigationUI: "hide" }).then(verrouiller, () => {});
+  else verrouiller();
+}
+
+/** En portrait sur téléphone : le jeu se joue en paysage, on demande de tourner l'écran. */
+export function TournerTelephone() {
+  if (!TACTILE) return null;
+  return (
+    <div className="tourner">
+      <div className="tourner-telephone" />
+      <p>Tourne ton téléphone</p>
+      <small>Aurelith se joue en paysage</small>
     </div>
   );
 }

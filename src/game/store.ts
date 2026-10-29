@@ -31,6 +31,7 @@ export type Onglet = "carte" | "lieux" | "indices" | "especes" | "sac" | "succes
 type Panneau =
   | { type: "indice" | "enigme" | "voyage"; id: string }
   | { type: "journal"; onglet: Onglet }
+  | { type: "reglages" }
   | null;
 
 /** Lieu affiché sur le côté (lore) quand on y entre. */

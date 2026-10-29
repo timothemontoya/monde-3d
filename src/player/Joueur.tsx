@@ -11,6 +11,7 @@ import { distanceEnMer, indiceCellule, laCarte, MER, regionA, versMonde } from "
 import { distanceBarriere } from "../world/geometrie";
 import { lePlan, terreFerme } from "../world/plan";
 import { TACTILE } from "../ui/Tactile";
+import { useReglages } from "../game/reglages";
 import { hauteurPont, hauteurSol, NIVEAU_MER } from "../world/relief";
 import { prechaufferTerrain } from "../world/Terrain";
 
@@ -93,6 +94,7 @@ function zone(x: number, z: number) {
 export function Joueur() {
   const corps = useRef<RapierRigidBody>(null);
   const controles = useRef<PLC>(null);
+  const sensibilite = useReglages((s) => s.sensibilite);
   const { world } = useRapier();
   const camera = useThree((s) => s.camera);
   const [, lire] = useKeyboardControls();
@@ -459,7 +461,7 @@ export function Joueur() {
   return (
     <>
       {/* Pas de capture au clic n'importe où : seulement via capturerSouris(). */}
-      <PointerLockControls ref={controles} selector="#capture-manuelle" onUnlock={() => useJeu.getState().panneau === null && useJeu.getState().sortir()} />
+      <PointerLockControls ref={controles} pointerSpeed={sensibilite} selector="#capture-manuelle" onUnlock={() => useJeu.getState().panneau === null && useJeu.getState().sortir()} />
       <RigidBody ref={corps} type="kinematicPosition" colliders={false} position={depart} enabledRotations={[false, false, false]}>
         <CapsuleCollider args={[DEMI_HAUTEUR, RAYON]} />
       </RigidBody>

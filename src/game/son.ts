@@ -21,8 +21,8 @@ function lireCoupe() {
 }
 let coupe = lireCoupe();
 
-/** Volume général (0 à 1). */
-const VOLUME = 0.8;
+/** Volume général (0 à 1), réglable dans les réglages. */
+let volume = 0.8;
 
 /** Crée le son au premier geste du joueur (les navigateurs l'exigent), ou le relance. */
 export function demarrerSon() {
@@ -36,7 +36,7 @@ export function demarrerSon() {
     return;
   }
   maitre = ctx.createGain();
-  maitre.gain.value = coupe ? 0 : VOLUME;
+  maitre.gain.value = coupe ? 0 : volume;
   // Un léger écrêtage doux : plusieurs sons ensemble ne saturent jamais.
   const compresseur = ctx.createDynamicsCompressor();
   compresseur.threshold.value = -14;
@@ -123,8 +123,14 @@ export function basculerSon() {
   } catch {
     /* navigation privée : le choix ne dure que la partie */
   }
-  if (ctx) maitre.gain.setTargetAtTime(coupe ? 0 : VOLUME, ctx.currentTime, 0.05);
+  if (ctx) maitre.gain.setTargetAtTime(coupe ? 0 : volume, ctx.currentTime, 0.05);
   return coupe;
+}
+
+/** Règle le volume général (0 à 1). */
+export function fixerVolume(v: number) {
+  volume = v;
+  if (ctx && !coupe) maitre.gain.setTargetAtTime(volume, ctx.currentTime, 0.05);
 }
 
 // ─── Sons brefs ─────────────────────────────────────────────────────────────

@@ -4,7 +4,8 @@ import { positionJoueur } from "../game/joueur";
 import { basculerSon, sonCoupe } from "../game/son";
 import { enigmeParId, indiceParId, normaliser, objetParId, portParId, remplie, useJeu } from "../game/store";
 import { capturerSouris, teleporterVers } from "../player/Joueur";
-import { CommandesTactiles, TACTILE } from "./Tactile";
+import { useReglages } from "../game/reglages";
+import { CommandesTactiles, pleinEcranPaysage, TACTILE, TournerTelephone } from "./Tactile";
 import { versMonde } from "../world/carte";
 import { lePlan } from "../world/plan";
 import { MiniCarte } from "./Carte";
@@ -23,7 +24,6 @@ function reprendre() {
 function EcranTitre() {
   const { lieux, entrer, ouvrir, reinitialiser } = useJeu();
   const dejaCommence = lieux.length > 0;
-  const [coupe, setCoupe] = useState(sonCoupe);
   return (
     <div className="ecran-titre">
       <div className="titre-bloc">
@@ -34,31 +34,32 @@ function EcranTitre() {
           className="bouton bouton-principal"
           onClick={() => {
             entrer();
+            pleinEcranPaysage();
             capturerSouris();
           }}
         >
           {dejaCommence ? "Reprendre l'exploration" : "Entrer dans le monde"}
         </button>
         <div className="boutons-secondaires">
-          <button className="bouton" onClick={() => setCoupe(basculerSon())}>
-            {coupe ? "Son : coupé" : "Son : activé"}
+          <button className="bouton" onClick={() => ouvrir({ type: "reglages" })}>
+            Réglages
           </button>
+          {dejaCommence && (
+            <>
+              <button className="bouton" onClick={() => ouvrir({ type: "journal", onglet: "carte" })}>
+                Journal
+              </button>
+              <button
+                className="bouton"
+                onClick={() => {
+                  if (confirm("Effacer toute la progression ?")) reinitialiser();
+                }}
+              >
+                Recommencer
+              </button>
+            </>
+          )}
         </div>
-        {dejaCommence && (
-          <div className="boutons-secondaires">
-            <button className="bouton" onClick={() => ouvrir({ type: "journal", onglet: "carte" })}>
-              Journal
-            </button>
-            <button
-              className="bouton"
-              onClick={() => {
-                if (confirm("Effacer toute la progression ?")) reinitialiser();
-              }}
-            >
-              Recommencer
-            </button>
-          </div>
-        )}
       </div>
       <ul className="commandes commandes-tactiles">
         <li>Joystick à gauche : se déplacer (à fond : courir)</li>
@@ -194,11 +195,15 @@ function ATH() {
           Succès {succes.length}/{SUCCES.length}
         </span>
         {enMain && (
-          <span>
+          <span className="aide">
             <kbd>F</kbd> utiliser · {objetParId(enMain).nom}
           </span>
         )}
-        {vol && <span>En vol · <kbd>C</kbd> pour se poser</span>}
+        {vol && (
+          <span className="aide">
+            En vol · <kbd>C</kbd> pour se poser
+          </span>
+        )}
         <span className="aide">Tab · journal</span>
       </div>
     </>
@@ -258,6 +263,50 @@ function PanneauEnigme({ id }: { id: string }) {
         </button>
       </form>
       {erreur && <p className="erreur">Rien ne se passe…</p>}
+    </Panneau>
+  );
+}
+
+/** Un réglage : son nom, ce qu'il fait, et de quoi le changer. */
+function Reglage({ nom, aide, children }: { nom: string; aide?: string; children: React.ReactNode }) {
+  return (
+    <div className="reglage">
+      <div>
+        <strong>{nom}</strong>
+        {aide && <span>{aide}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Interrupteur({ actif, changer }: { actif: boolean; changer: (v: boolean) => void }) {
+  return (
+    <button className={`interrupteur ${actif ? "actif" : ""}`} role="switch" aria-checked={actif} onClick={() => changer(!actif)}>
+      <span />
+    </button>
+  );
+}
+
+function Reglages() {
+  const { performances, volume, sensibilite, regler } = useReglages();
+  const [coupe, setCoupe] = useState(sonCoupe);
+  return (
+    <Panneau titre="Réglages">
+      <div className="reglages">
+        <Reglage nom="Mode performances" aide="Retire l'effet cartoon (les contours à l'encre) : plus fluide sur les petites machines.">
+          <Interrupteur actif={performances} changer={(v) => regler({ performances: v })} />
+        </Reglage>
+        <Reglage nom="Son">
+          <Interrupteur actif={!coupe} changer={() => setCoupe(basculerSon())} />
+        </Reglage>
+        <Reglage nom="Volume">
+          <input type="range" min={0} max={1} step={0.05} value={volume} disabled={coupe} onChange={(e) => regler({ volume: Number(e.target.value) })} />
+        </Reglage>
+        <Reglage nom="Sensibilité du regard" aide={TACTILE ? "Vitesse de la caméra quand on glisse le doigt." : "Vitesse de la caméra à la souris."}>
+          <input type="range" min={0.3} max={2.5} step={0.1} value={sensibilite} onChange={(e) => regler({ sensibilite: Number(e.target.value) })} />
+        </Reglage>
+      </div>
     </Panneau>
   );
 }
@@ -390,18 +439,20 @@ export function Interface() {
         </button>
       )}
       {!enJeu && !panneau && <EcranTitre />}
-      <Banniere />
+      {enJeu && <Banniere />}
       {enJeu && <PanneauLore />}
       <Notifications />
       {panneau?.type === "indice" && <Lecture id={panneau.id} />}
       {panneau?.type === "enigme" && <PanneauEnigme id={panneau.id} />}
       {panneau?.type === "voyage" && <Voyage id={panneau.id} />}
+      {panneau?.type === "reglages" && <Reglages />}
       {panneau?.type === "journal" && (
         <Panneau titre="Journal de bord" large>
           <Journal onglet={panneau.onglet} />
         </Panneau>
       )}
       <div className={`fondu ${fondu ? "actif" : ""}`} />
+      <TournerTelephone />
     </div>
   );
 }

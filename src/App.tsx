@@ -1,5 +1,5 @@
 import { KeyboardControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import { Bloom, BrightnessContrast, EffectComposer, GodRays, HueSaturation, N8AO, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
@@ -17,6 +17,7 @@ import { Barrieres } from "./world/Barrieres";
 import { bornes, carteComprise, chargerCarte, MER, regionA, versMonde } from "./world/carte";
 import { REGIONS } from "./content/monde";
 import { positionJoueur } from "./game/joueur";
+import { useReglages } from "./game/reglages";
 import { useJeu } from "./game/store";
 import { hauteurSol } from "./world/relief";
 import { Decor } from "./world/Decor";
@@ -32,7 +33,7 @@ const PARAMS = new URLSearchParams(window.location.search);
  * pour voir toute la carte d'un coup. Pas de joueur ni d'interface.
  */
 const VUE = PARAMS.get("vue");
-/** ?sanscontours : pas de traits à l'encre (et, en mode léger, pas de post-traitement du tout). */
+/** ?sanscontours : pas de traits à l'encre, comme le mode performances des réglages. */
 const SANS_CONTOURS = PARAMS.has("sanscontours");
 
 /** Caméra des vues aériennes : cadre tout le monde. */
@@ -110,6 +111,15 @@ function DisqueSoleil({ disque, pret }: { disque: RefObject<THREE.Mesh | null>; 
   );
 }
 
+/** Mode léger sans contours, donc sans passe d'effets : les tons sont faits par le rendu lui-même. */
+function TonsSansEffets({ actif }: { actif: boolean }) {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    gl.toneMapping = actif ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+  }, [gl, actif]);
+  return null;
+}
+
 /** Image allégée (téléphones) : seulement les contours à l'encre. */
 function ImageLegere() {
   return (
@@ -124,11 +134,11 @@ function ImageLegere() {
  * L'image finale : ombres de contact (N8AO), rayons de soleil dans la brume, lueurs, couleurs
  * réchauffées et un peu plus saturées, coins assombris : un rendu plus « peint ».
  */
-function Image({ soleil }: { soleil: THREE.Mesh | null }) {
+function Image({ soleil, sansContours }: { soleil: THREE.Mesh | null; sansContours: boolean }) {
   return (
     <EffectComposer>
       <N8AO aoRadius={2.5} intensity={2.2} distanceFalloff={1} halfRes color="#3a2a1a" />
-      {SANS_CONTOURS ? <></> : <Contours />}
+      {sansContours ? <></> : <Contours />}
       {soleil ? <GodRays sun={soleil} samples={40} density={0.92} decay={0.93} weight={0.35} exposure={0.45} clampMax={1} blur /> : <></>}
       <Bloom intensity={0.85} luminanceThreshold={0.72} luminanceSmoothing={0.3} mipmapBlur />
       <HueSaturation saturation={0.04} />
@@ -144,6 +154,7 @@ function Monde() {
   const [soleil, setSoleil] = useState<THREE.Mesh | null>(null);
   const soleilPret = useCallback(() => setSoleil(disque.current), []);
   const depart = useMemo<[number, number]>(() => [lePlan().depart.x, lePlan().depart.z], []);
+  const sansContours = useReglages((s) => s.performances) || SANS_CONTOURS;
 
   return (
     <KeyboardControls map={TOUCHES}>
@@ -151,7 +162,7 @@ function Monde() {
         shadows={!LEGER}
         dpr={LEGER ? 1 : [1, 1.5]}
         camera={{ fov: 70, near: 0.15, far: 6000 }}
-        gl={{ antialias: !LEGER, preserveDrawingBuffer: LEGER, toneMapping: LEGER && SANS_CONTOURS ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping }}
+        gl={{ antialias: !LEGER, preserveDrawingBuffer: LEGER, toneMapping: THREE.NoToneMapping }}
         onCreated={({ scene, camera }) => {
           if (import.meta.env.DEV) Object.assign(window, { scene, camera });
         }}
@@ -167,15 +178,16 @@ function Monde() {
             <Objets />
             {!VUE && <Joueur />}
             {!VUE && <Sons />}
-          {TACTILE && <RegardTactile />}
+            {TACTILE && <RegardTactile />}
           </Physics>
           <ObjetEnMain />
           {/* Lumière dorée qui « bave » sur les zones brillantes, coins assombris : rendu cinéma. */}
-          {LEGER && !SANS_CONTOURS && <ImageLegere />}
+          {LEGER && !sansContours && <ImageLegere />}
+          {LEGER && <TonsSansEffets actif={sansContours} />}
           {!LEGER && (
             <>
               <DisqueSoleil disque={disque} pret={soleilPret} />
-              <Image soleil={soleil} />
+              <Image soleil={soleil} sansContours={sansContours} />
             </>
           )}
         </Suspense>
