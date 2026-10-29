@@ -66,10 +66,12 @@ function maison({ largeur: W, etages = 1, bas = "wall", haut = bas, toit = "roof
   poser(pignon, [X(W - 1), etages, 0.5], 0, [1, h, -1]);
   poser(pignon, [X(0), etages, 0.5], 2 * D, [1, h, 1]);
   poser(pignon, [X(0), etages, -0.5], 2 * D, [1, h, -1]);
-  // Toit : deux rangées de tuiles dont le faîtage se rejoint au milieu.
+  // Toit : deux rangées de tuiles dont le faîtage se rejoint au milieu. Il déborde un peu sur les
+  // pignons : sinon la tranche des tuiles tombe dans le plan du pignon et les deux scintillent.
+  const DEBORD = 1.06;
   for (let i = 0; i < W; i++) {
-    poser(toit, [X(i), etages, 0.5], D, undefined, couleurToit);
-    poser(toit, [X(i), etages, -0.5], -D, undefined, couleurToit);
+    poser(toit, [X(i) * DEBORD, etages, 0.5], D, [1, 1, DEBORD], couleurToit);
+    poser(toit, [X(i) * DEBORD, etages, -0.5], -D, [1, 1, DEBORD], couleurToit);
   }
   if (cheminee) poser("chimney", [X(W - 1) - 0.1, etages + (toit === "roof" ? 0 : 0.2), -0.45], 0);
   // Tourelles : une tour d'une tuile contre un pignon (côté -1 ou 1), à l'avant, coiffée d'un toit pointu.
