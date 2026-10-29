@@ -2,10 +2,11 @@ import { useFrame } from "@react-three/fiber";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { ENIGMES, INDICES, RAMASSABLES } from "../content/monde";
+import { ENIGMES, INDICES, RAMASSABLES, VILLAGES } from "../content/monde";
 import type { Indice } from "../content/types";
 import { useJeu } from "../game/store";
 import { FormeObjet } from "../player/FormeObjet";
+import { versMonde } from "./carte";
 import { Modele } from "./modeles";
 import { lePlan, type Point } from "./plan";
 import { graine } from "./relief";
@@ -43,6 +44,17 @@ function Lueurs({ couleur, eteintes }: { couleur: string; eteintes: boolean }) {
 function ObjetIndice({ indice }: { indice: Indice }) {
   const trouve = useJeu((s) => s.indices.includes(indice.id));
   const position = useMemo(() => xyz(lePlan().indices[indice.id]), [indice]);
+  // Une stèle tourne sa face gravée vers le village le plus proche : on la lit en arrivant de là.
+  const face = useMemo(() => {
+    const [x, , z] = position;
+    let [dx, dz, d] = [0, 1, Infinity];
+    for (const v of VILLAGES) {
+      const [vx, vz] = versMonde(v.centre);
+      const l = Math.hypot(vx - x, vz - z);
+      if (l < d) [dx, dz, d] = [vx - x, vz - z, l];
+    }
+    return Math.atan2(dx, dz);
+  }, [position]);
   const braise = useRef<THREE.Mesh>(null);
   useFrame((state) => {
     if (braise.current) braise.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 2.2) * 0.12);
@@ -50,7 +62,7 @@ function ObjetIndice({ indice }: { indice: Indice }) {
   return (
     <group position={position}>
       {indice.objet === "stele" && (
-        <>
+        <group rotation-y={face}>
           <Modele
             modele="stele"
             provisoire={
@@ -66,9 +78,10 @@ function ObjetIndice({ indice }: { indice: Indice }) {
             }
           />
           <RigidBody type="fixed" colliders={false}>
-            <CuboidCollider args={[1.1, 2.2, 0.3]} position={[0, 2.2, 0]} />
+            <CuboidCollider args={[1.4, 0.35, 0.85]} position={[0, 0.35, 0]} />
+            <CuboidCollider args={[0.8, 2.1, 0.3]} position={[0, 2.8, 0]} />
           </RigidBody>
-        </>
+        </group>
       )}
       {indice.objet === "livre" && (
         <>

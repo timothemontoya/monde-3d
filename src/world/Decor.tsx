@@ -140,10 +140,10 @@ const FLEURS: Semis = {
   villages: true,
 };
 const BOIS_MORT: Semis = { densite: 1, variantes: ["souche", "tronc"], forme: "souche", penteMax: 0.7, hauteurMin: 2, echelle: [0.8, 1.3], bosquets: "dans", marge: 2 };
-/** Traces de vie dans la campagne : une vieille clôture, une stèle, un tronc, un tonneau oublié. */
+/** Traces de vie dans la campagne : une vieille clôture, un menhir, un tronc, un tonneau oublié. */
 const TRACES: Semis = {
   densite: 0.25,
-  variantes: ["stele-moussue", "cloture", "cloture", "tronc", "tonneau", "souche", "botte-foin", "caisse", "panneau", "seau"],
+  variantes: ["menhir-1", "cloture", "cloture", "tronc", "tonneau", "souche", "botte-foin", "caisse", "panneau", "seau"],
   forme: "souche",
   penteMax: 0.4,
   hauteurMin: 2,
@@ -219,8 +219,8 @@ const SEMIS: Record<Exclude<TypeVegetation, "aucune">, Semis[]> = {
     { ...CHAMPIGNONS, densite: 22 },
     { ...FLEURS, densite: 25, bosquets: undefined },
     { ...BOIS_MORT, densite: 4 },
-    // De vieilles pierres moussues, comme des bornes oubliées.
-    { ...TRACES, densite: 1.5, variantes: ["stele-moussue", "stele-moussue", "tronc", "souche"], bosquets: undefined },
+    // De vieilles pierres dressées, moussues, comme des bornes oubliées.
+    { ...TRACES, densite: 1.5, variantes: ["menhir-1", "menhir-2", "tronc", "souche"], bosquets: undefined },
     CAILLOUX,
   ],
   "foret-sombre": [

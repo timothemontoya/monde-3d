@@ -922,11 +922,11 @@ export const DECORS: DecorUnique[] = [
   { modele: "lanterne", position: [758, 476] },
   { modele: "lanterne", position: [770, 500] },
 
-  // Terres libres : le carrefour du feu (marmite, panneau, stèle, vieille charrette, clôtures).
+  // Terres libres : le carrefour du feu (marmite, panneau, menhir, vieille charrette, clôtures).
   { modele: "marmite", position: [700, 470], angle: 20 },
   { modele: "panneau", position: [705, 465], angle: 200 },
   { modele: "lanterne", position: [706, 466.5] },
-  { modele: "stele-moussue", position: [714, 480], angle: 160, solide: [1.3, 1.6, 0.7] },
+  { modele: "menhir-1", position: [714, 480], angle: 160, solide: [1.1, 2.2, 0.8] },
   { modele: "charrette", position: [688, 482], angle: 40, solide: [2.3, 1.4, 3.5] },
   { modele: "cloture", position: [692, 462], angle: 10 },
   { modele: "cloture", position: [693.5, 461.7], angle: 10 },

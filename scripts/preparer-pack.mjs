@@ -392,7 +392,6 @@ const RECETTES = {
   marmite: { sources: ["survival:campfire-stand"], largeur: 2.2 },
   coffre: { sources: ["survival:chest"], largeur: 1 },
   seau: { sources: ["survival:bucket"], hauteur: 0.5 },
-  "stele-moussue": { sources: ["graveyard:gravestone-round"], hauteur: 1.6, couleurs: { colormap: "#a8b090" } },
   brasero: { sources: ["graveyard:fire-basket"], largeur: 1.2 },
   tente: { sources: ["survival:tent-canvas"], largeur: 3.5 },
   enclume: { sources: ["survival:workbench-anvil"], largeur: 1.4 },
