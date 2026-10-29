@@ -11,6 +11,10 @@ type Reglages = {
   volume: number;
   /** Sensibilité du regard (souris ou doigt), multiplie la vitesse de base. */
   sensibilite: number;
+  /** Textes des lieux : la bannière et le panneau de lore qui s'affichent quand on arrive quelque part. */
+  textesLieux: boolean;
+  /** Interface cachée (touche H) : on ne voit plus que le monde. Pas retenue d'une partie à l'autre. */
+  interfaceCachee: boolean;
   regler: (r: Partial<Omit<Reglages, "regler">>) => void;
 };
 
@@ -20,10 +24,13 @@ export const useReglages = create<Reglages>()(
       performances: false,
       volume: 0.8,
       sensibilite: 1,
+      textesLieux: true,
+      interfaceCachee: false,
       regler: (r) => set(r),
     }),
     {
       name: "aurelith-reglages",
+      partialize: ({ interfaceCachee: _, ...r }) => r,
       onRehydrateStorage: () => (r) => r && fixerVolume(r.volume),
     },
   ),

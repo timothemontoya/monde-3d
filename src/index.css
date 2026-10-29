@@ -35,9 +35,10 @@ kbd {
 /* ── Écran titre ─────────────────────────────────────────────── */
 .ecran-titre {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3rem;
-  background: #0b0d1f; animation: apparition 1.2s ease;
+  animation: apparition 1.2s ease;
 }
-.ecran-titre > :not(.fond-titre) { position: relative; z-index: 1; }
+/* Le fond de l'accueil (Accueil), sous l'écran titre et les panneaux. */
+.accueil { position: absolute; inset: 0; overflow: hidden; background: #0b0d1f; }
 
 /* Fond peint de l'écran d'accueil (FondTitre) */
 .fond-titre { position: absolute; inset: 0; overflow: hidden; }
@@ -50,7 +51,7 @@ kbd {
 .ft-voile { position: absolute; inset: 0; background: radial-gradient(ellipse 55% 50% at 50% 48%, rgba(8,6,12,0.55), transparent 75%),
   linear-gradient(180deg, transparent 60%, rgba(8,6,12,0.6)); }
 /* Entrée dans le monde (clic sur « Entrer ») */
-.entree { position: absolute; inset: 0; z-index: 40; overflow: hidden; pointer-events: none; animation: entree-ouvre 2.2s ease-in forwards; }
+.accueil.entree { z-index: 40; pointer-events: none; animation: entree-ouvre 2.2s ease-in forwards; }
 .entree .fond-titre { animation: entree-plonge 2.2s cubic-bezier(0.55, 0, 0.75, 0.4) forwards; transform-origin: 65% 42%; }
 .entree-nom { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-62%); text-align: center;
   animation: entree-nom 1.3s ease-in forwards; }
@@ -58,7 +59,9 @@ kbd {
   color: var(--or-pale); letter-spacing: 0.08em; text-shadow: 0 0 40px rgba(255, 190, 90, 0.5); }
 .entree-lumiere { position: absolute; inset: 0; opacity: 0; animation: entree-lumiere 2.2s ease-in-out forwards;
   background: radial-gradient(circle at 65% 42%, #fff6dc 0%, #ffd98a 30%, rgba(255,170,80,0.85) 60%, rgba(255,150,60,0.6) 100%); }
-@keyframes entree-plonge { from { transform: scale(1); filter: brightness(1); } to { transform: scale(2.6); filter: brightness(1.8); } }
+/* Le paysage s'efface sous la lumière à son plus fort : le flash s'ouvre sur le monde, pas sur un reste d'image. */
+@keyframes entree-plonge { 0% { transform: scale(1); filter: brightness(1); opacity: 1; } 50% { opacity: 1; }
+  58%, 100% { transform: scale(2.6); filter: brightness(1.8); opacity: 0; } }
 @keyframes entree-nom { to { transform: translateY(-120%) scale(1.15); letter-spacing: 0.4em; opacity: 0; filter: blur(4px); } }
 @keyframes entree-lumiere { 0% { opacity: 0; } 50% { opacity: 1; } 62% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes entree-ouvre { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
@@ -131,6 +134,7 @@ kbd {
 .onglets button { font-family: var(--titre); letter-spacing: 0.1em; font-size: 0.8rem; text-transform: uppercase; background: none;
   border: none; border-bottom: 1px solid transparent; color: var(--texte-2); padding: 0.4rem 0.9rem; cursor: pointer; }
 .onglets button.actif { color: var(--or-pale); border-bottom-color: var(--or); }
+.onglets button small { margin-left: 0.45rem; font-family: var(--corps); letter-spacing: 0; text-transform: none; font-size: 0.75rem; opacity: 0.7; }
 .carnet { text-align: left; }
 .carnet section { margin-bottom: 1.6rem; }
 .carnet h3 { font-family: var(--titre); font-weight: 400; color: var(--or); letter-spacing: 0.08em; font-size: 1.05rem; margin: 0 0 0.6rem;
@@ -141,9 +145,13 @@ kbd {
 .carnet p { margin: 0; line-height: 1.5; }
 .carnet .liens { font-size: 0.9rem; color: var(--texte-2); margin-top: 0.3rem; font-style: italic; }
 .vide { color: var(--texte-2); font-style: italic; }
-.liste-succes { list-style: none; padding: 0; margin: 0; text-align: left; }
-.liste-succes li { display: flex; flex-direction: column; padding: 0.7rem 0; border-bottom: 1px solid rgba(217,181,106,0.12); opacity: 0.5; }
+.liste-succes { list-style: none; padding: 0; margin: 0; text-align: left; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 1.6rem; }
+.liste-succes li { display: flex; align-items: center; gap: 0.9rem; padding: 0.7rem 0; border-bottom: 1px solid rgba(217,181,106,0.12); opacity: 0.5; }
 .liste-succes li.obtenu { opacity: 1; }
+.liste-succes li div { display: flex; flex-direction: column; }
+.liste-succes .sceau { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; border: 1px solid rgba(217,181,106,0.35);
+  color: var(--texte-2); font-size: 0.9rem; }
+.liste-succes li.obtenu .sceau { border-color: var(--or); color: var(--or-pale); box-shadow: 0 0 12px rgba(217,181,106,0.35); }
 .liste-succes strong { font-family: var(--titre); font-weight: 400; letter-spacing: 0.06em; color: var(--or-pale); }
 .liste-succes span { color: var(--texte-2); }
 
@@ -195,12 +203,38 @@ kbd {
   background: rgba(241,220,170,0.9); padding: 0 0.3rem; white-space: nowrap; }
 .feu-carte:hover em, .feu-carte:focus-visible em { opacity: 1; }
 .carnet article.inconnu { opacity: 0.55; }
-.sac { list-style: none; padding: 0; margin: 0; text-align: left; }
-.sac li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.8rem 0; border-bottom: 1px solid rgba(217,181,106,0.12); }
-.sac li div { display: flex; flex-direction: column; gap: 0.2rem; }
-.sac li strong { font-family: var(--titre); font-weight: 400; color: var(--or-pale); }
-.sac li span { color: var(--texte-2); }
-.sac li.en-main strong { color: var(--or); }
+
+/* Journal : les fiches en grille (indices, espèces, sac) */
+.grille-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.8rem; text-align: left; }
+.fiche { display: flex; flex-direction: column; gap: 0.4rem; padding: 1rem 1.15rem; background: rgba(255,240,200,0.03);
+  border: 1px solid rgba(217,181,106,0.16); border-top: 2px solid rgba(217,181,106,0.45); scroll-margin: 1rem; }
+.fiche h4 { margin: 0; font-size: 1.05rem; color: var(--or-pale); font-weight: 500; display: flex; align-items: center; gap: 0.5rem; }
+.fiche h4 small { margin-left: auto; font-family: var(--titre); font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--or); }
+.fiche p { margin: 0; line-height: 1.5; }
+.fiche .liens { font-size: 0.9rem; color: var(--texte-2); font-style: italic; margin-top: auto; padding-top: 0.3rem; }
+.fiche .liens a { color: var(--or); text-decoration: none; border-bottom: 1px dotted var(--or); }
+.fiche.inconnu { opacity: 0.55; border-top-color: rgba(217,181,106,0.2); border-style: dashed; }
+.fiche.objet .bouton { align-self: flex-start; margin-top: auto; padding: 0.45rem 1rem; font-size: 0.85rem; }
+.fiche.objet p { color: var(--texte-2); }
+.fiche.en-main { border-color: rgba(217,181,106,0.5); border-top-color: var(--or); box-shadow: 0 0 18px rgba(217,181,106,0.15) inset; }
+
+/* Journal : lieux, la liste par région et la fiche du lieu choisi */
+.journal-lieux { display: grid; grid-template-columns: minmax(200px, 280px) 1fr; gap: 1.6rem; text-align: left; align-items: start; }
+.lieux-liste { display: flex; flex-direction: column; gap: 0.9rem; max-height: 64vh; overflow: auto; padding-right: 0.4rem; }
+.lieux-groupe { display: flex; flex-direction: column; }
+.lieux-liste button { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; background: none; border: none;
+  border-left: 2px solid transparent; color: var(--texte); text-align: left; cursor: pointer; padding: 0.3rem 0.6rem; font: inherit; }
+.lieux-liste button:hover { color: var(--or-pale); }
+.lieux-liste button.actif { border-left-color: var(--or); color: var(--or-pale); background: rgba(217,181,106,0.08); }
+.lieux-liste small { color: var(--texte-2); font-size: 0.75rem; flex: none; }
+.lieux-liste small.complet { color: var(--or); }
+.lieu-region { font-family: var(--titre); letter-spacing: 0.08em; color: var(--or) !important; font-size: 1rem !important; }
+p.lieu-region { margin: 0; padding: 0.3rem 0.6rem; }
+.lieu-region.inconnue { color: var(--texte-2) !important; font-style: italic; }
+.lieu-dit { padding-left: 1.3rem !important; font-size: 0.95rem !important; }
+.lieu-restant { margin: 0.1rem 0 0; padding-left: 1.3rem; font-size: 0.8rem; color: var(--texte-2); font-style: italic; }
+.lieu-fiche { animation: apparition 0.35s ease; }
+.lieu-fiche h3 { font-family: var(--titre); font-weight: 400; color: var(--or-pale); letter-spacing: 0.06em; margin: 0.3rem 0 0; font-size: 1.6rem; }
 .destinations { display: flex; flex-direction: column; gap: 0.6rem; align-items: center; margin-bottom: 1.2rem; }
 .bouton:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -301,6 +335,17 @@ kbd {
 
   .invite, .message-barriere { font-size: 0.85rem; white-space: normal; max-width: 70vw; text-align: center; bottom: 34%; padding: 0.4rem 0.9rem; }
   .compteurs { font-size: 0.6rem; gap: 0.8rem; left: 0.8rem; bottom: 0.5rem; }
+
+  /* Journal sur petit écran : onglets qui défilent, liste des lieux plus étroite. */
+  .onglets { justify-content: flex-start; overflow-x: auto; margin-bottom: 0.8rem; scrollbar-width: none; }
+  .onglets button { flex: none; padding: 0.35rem 0.6rem; font-size: 0.7rem; }
+  .journal-lieux { grid-template-columns: minmax(150px, 34%) 1fr; gap: 1rem; }
+  .lieux-liste { max-height: 58vh; gap: 0.5rem; }
+  .lieux-liste button { padding: 0.25rem 0.4rem; font-size: 0.85rem; }
+  .lieu-dit { padding-left: 0.9rem !important; font-size: 0.82rem !important; }
+  .lieu-fiche h3 { font-size: 1.2rem; }
+  .grille-cartes { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.6rem; }
+  .fiche { padding: 0.7rem 0.85rem; font-size: 0.88rem; }
 
   .panneau-lore { width: min(240px, 38vw); padding: 0.7rem 0.9rem; left: 0.6rem; top: 42%; }
   .panneau-lore h3 { font-size: 1rem; }

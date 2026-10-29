@@ -23,18 +23,23 @@ function reprendre() {
 }
 
 /**
- * Entrée dans le monde : le paysage de l'accueil s'approche du soleil, s'embrase de lumière dorée
- * pendant que le nom s'élève et s'efface, puis la lumière s'ouvre sur le jeu.
+ * Le fond de l'accueil, une seule couche qui reste en place : derrière l'écran titre et les panneaux
+ * ouverts depuis l'accueil, puis pendant l'entrée dans le monde, où le paysage s'approche du soleil et
+ * s'embrase de lumière dorée pendant que le nom s'élève et s'efface, avant de s'ouvrir sur le jeu.
  */
-function Entree({ fin }: { fin: () => void }) {
+function Accueil({ entree, fin }: { entree: boolean; fin: () => void }) {
   return (
-    <div className="entree" onAnimationEnd={(e) => e.target === e.currentTarget && fin()}>
+    <div className={`accueil ${entree ? "entree" : ""}`} onAnimationEnd={(e) => e.target === e.currentTarget && fin()}>
       <FondTitre />
-      <div className="entree-nom">
-        <p className="sur-titre">Un monde à découvrir</p>
-        <h1>Aurelith</h1>
-      </div>
-      <div className="entree-lumiere" />
+      {entree && (
+        <>
+          <div className="entree-nom">
+            <p className="sur-titre">Un monde à découvrir</p>
+            <h1>Aurelith</h1>
+          </div>
+          <div className="entree-lumiere" />
+        </>
+      )}
     </div>
   );
 }
@@ -44,7 +49,6 @@ function EcranTitre({ partir }: { partir: () => void }) {
   const dejaCommence = lieux.length > 0;
   return (
     <div className="ecran-titre">
-      <FondTitre />
       <div className="titre-bloc">
         <div className="titre-nom">
           <p className="sur-titre">Un monde à découvrir</p>
@@ -100,6 +104,7 @@ function EcranTitre({ partir }: { partir: () => void }) {
         <li><kbd>1</kbd>…<kbd>8</kbd> prendre un objet en main</li>
         <li><kbd>F</kbd> utiliser l'objet</li>
         <li><kbd>Tab</kbd> journal</li>
+        <li><kbd>H</kbd> cacher l'interface</li>
         <li><kbd>M</kbd> couper le son</li>
         <li><kbd>Échap</kbd> pause</li>
       </ul>
@@ -292,7 +297,7 @@ function PanneauEnigme({ id }: { id: string }) {
 }
 
 /** Un réglage : son nom, ce qu'il fait, et de quoi le changer. */
-function Reglage({ nom, aide, children }: { nom: string; aide?: string; children: React.ReactNode }) {
+function Reglage({ nom, aide, children }: { nom: string; aide?: string; children?: React.ReactNode }) {
   return (
     <div className="reglage">
       <div>
@@ -313,7 +318,7 @@ function Interrupteur({ actif, changer }: { actif: boolean; changer: (v: boolean
 }
 
 function Reglages() {
-  const { performances, volume, sensibilite, regler } = useReglages();
+  const { performances, volume, sensibilite, textesLieux, regler } = useReglages();
   const [coupe, setCoupe] = useState(sonCoupe);
   return (
     <Panneau titre="Réglages">
@@ -327,6 +332,13 @@ function Reglages() {
         <Reglage nom="Volume">
           <input type="range" min={0} max={1} step={0.05} value={volume} disabled={coupe} onChange={(e) => regler({ volume: Number(e.target.value) })} />
         </Reglage>
+        <Reglage nom="Textes des lieux" aide="Le nom et l'histoire d'un lieu quand on y arrive. On les retrouve toujours dans le journal.">
+          <Interrupteur actif={textesLieux} changer={(v) => regler({ textesLieux: v })} />
+        </Reglage>
+        <Reglage
+          nom="Cacher l'interface"
+          aide={TACTILE ? "L'œil en haut de l'écran : on ne voit plus que le monde." : "Touche H en jeu : on ne voit plus que le monde."}
+        />
         <Reglage nom="Sensibilité du regard" aide={TACTILE ? "Vitesse de la caméra quand on glisse le doigt." : "Vitesse de la caméra à la souris."}>
           <input type="range" min={0.3} max={2.5} step={0.1} value={sensibilite} onChange={(e) => regler({ sensibilite: Number(e.target.value) })} />
         </Reglage>
@@ -413,6 +425,9 @@ function useRaccourcis() {
         const liste = OBJETS.filter((o) => s.objets.includes(o.id));
         const objet = liste[Number(e.code.slice(5)) - 1];
         if (objet) s.tenir(objet.id);
+      } else if (e.code === "KeyH" && s.enJeu && !s.panneau) {
+        const r = useReglages.getState();
+        r.regler({ interfaceCachee: !r.interfaceCachee });
       } else if (e.code === "KeyM") {
         s.notifier(basculerSon() ? "Son coupé" : "Son rétabli", "M pour changer");
       } else if (e.key === "Tab") {
@@ -452,22 +467,24 @@ function usePointerLock() {
 export function Interface() {
   useRaccourcis();
   const { enJeu, panneau, fondu } = useJeu();
+  const { textesLieux, interfaceCachee } = useReglages();
+  const textes = textesLieux && !interfaceCachee;
   const verrouille = usePointerLock();
   const [entree, setEntree] = useState<number | null>(null);
   return (
     <div className="interface">
-      {enJeu && !panneau && <ATH />}
+      {enJeu && !panneau && !interfaceCachee && <ATH />}
       <CommandesTactiles />
       {enJeu && !panneau && !fondu && !verrouille && !TACTILE && (
         <button className="reprendre-souris bouton bouton-principal" onClick={capturerSouris}>
           Cliquer pour reprendre
         </button>
       )}
+      {(!enJeu || entree) && <Accueil entree={!!entree} fin={() => setEntree(null)} />}
       {!enJeu && !panneau && <EcranTitre partir={() => setEntree(Date.now())} />}
-      {entree && <Entree key={entree} fin={() => setEntree(null)} />}
-      {enJeu && <Banniere />}
-      {enJeu && <PanneauLore />}
-      <Notifications />
+      {enJeu && textes && <Banniere />}
+      {enJeu && textes && <PanneauLore />}
+      {!(enJeu && interfaceCachee && !panneau) && <Notifications />}
       {panneau?.type === "indice" && <Lecture id={panneau.id} />}
       {panneau?.type === "enigme" && <PanneauEnigme id={panneau.id} />}
       {panneau?.type === "voyage" && <Voyage id={panneau.id} />}

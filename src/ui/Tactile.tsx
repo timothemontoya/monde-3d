@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent as PE, type ReactNode } 
 import * as THREE from "three";
 import { useReglages } from "../game/reglages";
 import { useJeu } from "../game/store";
-import { IconeJournal, IconePause, IconeReglages } from "./Icones";
+import { IconeJournal, IconeOeil, IconePause, IconeReglages } from "./Icones";
 
 // Commandes tactiles (téléphone, tablette) : un joystick à gauche pour marcher, glisser à droite pour
 // regarder, et des boutons. Elles envoient au jeu les mêmes touches que le clavier (ZQSD, Espace,
@@ -170,7 +170,22 @@ function Touche({ code, tenue = false, children, className = "" }: { code: strin
 /** Les commandes tactiles, par-dessus le jeu, quand on joue. */
 export function CommandesTactiles() {
   const { enJeu, panneau, fondu, vol, cible, enMain } = useJeu();
+  const { interfaceCachee, regler } = useReglages();
   if (!TACTILE || !enJeu || panneau || fondu) return null;
+  const oeil = (
+    <button className="tactile-touche tactile-rond" onClick={() => regler({ interfaceCachee: !interfaceCachee })}>
+      <IconeOeil barre={!interfaceCachee} />
+    </button>
+  );
+  // Interface cachée : on garde de quoi marcher et regarder, et l'œil pour tout faire revenir.
+  if (interfaceCachee)
+    return (
+      <div className="tactile">
+        <Joystick />
+        <Regard />
+        <div className="tactile-haut">{oeil}</div>
+      </div>
+    );
   return (
     <div className="tactile">
       <Joystick />
@@ -213,6 +228,7 @@ export function CommandesTactiles() {
         )}
       </div>
       <div className="tactile-haut">
+        {oeil}
         <Touche code="Tab" className="tactile-rond">
           <IconeJournal />
         </Touche>
