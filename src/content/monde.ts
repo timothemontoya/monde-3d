@@ -1166,6 +1166,15 @@ export const FEUX: Feu[] = [
   { id: "feu-atlantes", nom: "Archipel des Atlantes", position: [205, 720] },
   { id: "feu-foret", nom: "Cœur de la forêt", position: [600, 680] },
   { id: "feu-sorcieres", nom: "Village des sorcières", position: [490, 588] },
+  { id: "feu-corne", nom: "Ancien village de la Corne", position: [160, 190] },
+  { id: "feu-hippocampe", nom: "Avant-poste de l'Hippocampe", position: [245, 418] },
+  { id: "feu-royaume", nom: "Royaume de glace", position: [860, 150] },
+  { id: "feu-monastere", nom: "Monastère de l'Iceberg", position: [781, 241] },
+  { id: "feu-elcres-abandonnee", nom: "Elcres abandonnée", position: [1170, 230] },
+  { id: "feu-terres-rougies", nom: "Terres rougies", position: [1153, 412] },
+  { id: "feu-landes", nom: "Landes roses", position: [1330, 640] },
+  { id: "feu-elcres", nom: "Elcres", position: [1278, 877] },
+  { id: "feu-oclene", nom: "Plage d'Oclène", position: [202, 926] },
 ];
 
 // ─── Objets (PROVISOIRE) ────────────────────────────────────────────────────

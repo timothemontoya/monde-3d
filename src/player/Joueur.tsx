@@ -7,6 +7,7 @@ import type { PointerLockControls as PLC } from "three-stdlib";
 import { BARRIERES, FRONTIERES_MAGIQUES, LIEUX, REGIONS, REGLAGES } from "../content/monde";
 import { positionJoueur } from "../game/joueur";
 import { barriereOuverte, lesExplorees, remplie, useJeu, type Cible } from "../game/store";
+import { zonesDe } from "../world/decouverte";
 import { distanceEnMer, indiceCellule, laCarte, MER, regionA, versMonde } from "../world/carte";
 import { distanceBarriere } from "../world/geometrie";
 import { lePlan, terreFerme } from "../world/plan";
@@ -42,8 +43,8 @@ const RAYON = 0.5;
 const DEMI_HAUTEUR = 0.6;
 /** Distance à laquelle on peut activer un objet. */
 const PORTEE = 4;
-/** Rayon d'exploration (brouillard de la carte), en m. */
-const VUE = 70;
+/** Rayon d'exploration (brouillard de la carte), en m : les zones qu'il touche se dévoilent en entier. */
+const VUE = 40;
 const GRAVITE = 28;
 /** Vitesse de saut, en m/s (environ 1,1 m de haut). */
 const SAUT = 8;
@@ -138,7 +139,11 @@ export function Joueur() {
   useEffect(() => {
     // Prépare le brouillard d'exploration (sauvegardé) à la taille de la carte.
     const c = laCarte();
-    lesExplorees(c.largeur * c.hauteur);
+    const bits = lesExplorees(c.largeur * c.hauteur);
+    // Parties d'avant les zones : on complète les zones déjà entamées.
+    const entamees: number[] = [];
+    for (let k = 0; k < c.largeur * c.hauteur; k++) if (bits[k >> 3] & (1 << (k & 7))) entamees.push(k);
+    if (entamees.length) useJeu.getState().marquerExplore(zonesDe(entamees));
     capture = () => !TACTILE && controles.current?.lock();
     // Au départ, on regarde vers le centre du village.
     const cap = lePlan().depart.cap;
@@ -454,7 +459,7 @@ export function Joueur() {
           const z = cz + dz;
           if (x >= 0 && z >= 0 && x < c.largeur && z < c.hauteur) cellules.push(z * c.largeur + x);
         }
-      etat.marquerExplore(cellules);
+      etat.marquerExplore(zonesDe(cellules));
     }
   });
 

@@ -9,6 +9,7 @@ import { CommandesTactiles, pleinEcranPaysage, TACTILE, TournerTelephone } from 
 import { versMonde } from "../world/carte";
 import { lePlan } from "../world/plan";
 import { MiniCarte } from "./Carte";
+import { FondTitre } from "./FondTitre";
 import { EspecesDuLieu, Journal, Paragraphes } from "./Journal";
 
 /**
@@ -26,6 +27,7 @@ function EcranTitre() {
   const dejaCommence = lieux.length > 0;
   return (
     <div className="ecran-titre">
+      <FondTitre />
       <div className="titre-bloc">
         <div className="titre-nom">
           <p className="sur-titre">Un monde à découvrir</p>
