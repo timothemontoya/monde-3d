@@ -175,9 +175,18 @@ kbd {
 
 /* ── Panneau de lore (sur le côté) ───────────────────────────── */
 .panneau-lore { position: absolute; left: 1.4rem; top: 50%; width: min(360px, 40vw); padding: 1.4rem 1.6rem;
-  transform: translate(-30px, -50%); opacity: 0; transition: opacity 1.2s ease, transform 1.2s ease;
+  transform: translate(0, -50%); transition: transform 0.6s ease; animation: apparition 1.2s ease;
   background: linear-gradient(90deg, rgba(10,9,7,0.82), rgba(10,9,7,0.45)); border-left: 2px solid var(--or); }
-.panneau-lore.visible { opacity: 1; transform: translate(0, -50%); }
+/* Replié : le panneau glisse hors de l'écran, seule sa languette (la flèche et le nom du lieu) dépasse. */
+.panneau-lore.replie { transform: translate(calc(-100% - 1.4rem), -50%); }
+.lore-fleche { position: absolute; left: 100%; top: 0; display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.7rem;
+  background: rgba(10,9,7,0.82); border: 1px solid rgba(217,181,106,0.35); border-left: none; color: var(--or-pale); cursor: pointer;
+  font-family: var(--titre); letter-spacing: 0.08em; font-size: 0.8rem; white-space: nowrap; }
+.lore-fleche:hover { color: var(--or); border-color: var(--or); }
+.lore-fleche .chevron { width: 0.5rem; height: 0.5rem; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: translateX(2px) rotate(45deg); transition: transform 0.4s ease; }
+.panneau-lore.replie .chevron { transform: translateX(-2px) rotate(-135deg); }
+.lore-contenu { animation: apparition 0.8s ease; }
 .panneau-lore h3 { font-family: var(--titre); font-weight: 400; color: var(--or-pale); letter-spacing: 0.06em; margin: 0.3rem 0 0; font-size: 1.4rem; }
 .panneau-lore .sur-titre { font-size: 0.7rem; }
 .filet.gauche { margin: 0.8rem 0; width: 70%; background: linear-gradient(90deg, var(--or), transparent); }
@@ -348,6 +357,7 @@ p.lieu-region { margin: 0; padding: 0.3rem 0.6rem; }
   .fiche { padding: 0.7rem 0.85rem; font-size: 0.88rem; }
 
   .panneau-lore { width: min(240px, 38vw); padding: 0.7rem 0.9rem; left: 0.6rem; top: 42%; }
+  .panneau-lore.replie { transform: translate(calc(-100% - 0.6rem), -50%); }
   .panneau-lore h3 { font-size: 1rem; }
   .lore { font-size: 0.8rem; margin-bottom: 0.4rem; }
   .filet.gauche { margin: 0.4rem 0; }
@@ -378,8 +388,9 @@ p.lieu-region { margin: 0; padding: 0.3rem 0.6rem; }
 .tactile-actif .invite { bottom: auto; top: 18%; }
 .tactile-actif .notifications { right: calc(0.6rem + env(safe-area-inset-right)); }
 .tactile-actif .mini-carte { right: calc(0.6rem + env(safe-area-inset-right)); }
-.tactile-actif .panneau-lore { left: calc(0.6rem + env(safe-area-inset-left)); top: 64px; transform: translate(-30px, 0); }
-.tactile-actif .panneau-lore.visible { transform: none; }
+.tactile-actif .panneau-lore { left: calc(0.6rem + env(safe-area-inset-left)); top: 64px; transform: none; }
+.tactile-actif .panneau-lore.replie { transform: translateX(calc(-100% - 0.6rem - env(safe-area-inset-left))); }
+.tactile-actif .lore-fleche { padding: 0.6rem 0.8rem; }
 .tactile-actif .viseur { display: none; }
 /* Écran titre en paysage : le nom au centre dans une lueur dorée, le menu dessous, l'aide tout en bas. */
 @media (max-height: 520px) {

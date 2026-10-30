@@ -13,6 +13,8 @@ type Reglages = {
   sensibilite: number;
   /** Textes des lieux : la bannière et le panneau de lore qui s'affichent quand on arrive quelque part. */
   textesLieux: boolean;
+  /** Le panneau d'histoire du lieu, à gauche : déplié, ou replié contre le bord (la flèche). */
+  loreOuvert: boolean;
   /** Interface cachée (touche H) : on ne voit plus que le monde. Pas retenue d'une partie à l'autre. */
   interfaceCachee: boolean;
   regler: (r: Partial<Omit<Reglages, "regler">>) => void;
@@ -25,6 +27,7 @@ export const useReglages = create<Reglages>()(
       volume: 0.8,
       sensibilite: 1,
       textesLieux: true,
+      loreOuvert: true,
       interfaceCachee: false,
       regler: (r) => set(r),
     }),

@@ -104,6 +104,7 @@ function EcranTitre({ partir }: { partir: () => void }) {
         <li><kbd>1</kbd>…<kbd>8</kbd> prendre un objet en main</li>
         <li><kbd>F</kbd> utiliser l'objet</li>
         <li><kbd>Tab</kbd> journal</li>
+        <li><kbd>L</kbd> déplier / replier l'histoire du lieu</li>
         <li><kbd>H</kbd> cacher l'interface</li>
         <li><kbd>M</kbd> couper le son</li>
         <li><kbd>Échap</kbd> pause</li>
@@ -132,26 +133,34 @@ function Banniere() {
   );
 }
 
-/** Panneau de lore sur le côté : ce qu'on sait du lieu (et ce qu'il reste à découvrir). */
+/**
+ * Panneau de lore sur le côté : ce qu'on sait du lieu où l'on est (et ce qu'il reste à découvrir).
+ * Un tiroir : la flèche (ou L) le replie contre le bord, et le rouvre ; il reste comme on l'a laissé.
+ */
 function PanneauLore() {
-  const affiche = useJeu((s) => s.affiche);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    if (!affiche) return;
-    setVisible(true);
-    const t = setTimeout(() => setVisible(false), 14000);
-    return () => clearTimeout(t);
-  }, [affiche]);
-  if (!affiche) return null;
-  const lieu = LIEUX.find((l) => l.id === affiche.id) ?? REGIONS.find((r) => r.id === affiche.id);
+  const { lieuActuel, regionActuelle, affiche } = useJeu();
+  const { loreOuvert, regler } = useReglages();
+  const id = lieuActuel ?? regionActuelle ?? affiche?.id;
+  const lieu = LIEUX.find((l) => l.id === id) ?? REGIONS.find((r) => r.id === id);
   if (!lieu) return null;
   return (
-    <aside className={`panneau-lore ${visible ? "visible" : ""}`} key={affiche.cle}>
-      <p className="sur-titre">{lieu.sousTitre}</p>
-      <h3>{lieu.nom}</h3>
-      <div className="filet gauche" />
-      <Paragraphes lieu={lieu.id} lore={lieu.lore} />
-      <EspecesDuLieu id={lieu.id} />
+    <aside className={`panneau-lore ${loreOuvert ? "" : "replie"}`}>
+      <button
+        className="lore-fleche"
+        title={loreOuvert ? "Replier (L)" : "Déplier (L)"}
+        aria-expanded={loreOuvert}
+        onClick={() => regler({ loreOuvert: !loreOuvert })}
+      >
+        <span className="chevron" />
+        {!loreOuvert && <span className="lore-onglet-nom">{lieu.nom}</span>}
+      </button>
+      <div className="lore-contenu" key={lieu.id}>
+        <p className="sur-titre">{lieu.sousTitre}</p>
+        <h3>{lieu.nom}</h3>
+        <div className="filet gauche" />
+        <Paragraphes lieu={lieu.id} lore={lieu.lore} />
+        <EspecesDuLieu id={lieu.id} />
+      </div>
     </aside>
   );
 }
@@ -332,7 +341,7 @@ function Reglages() {
         <Reglage nom="Volume">
           <input type="range" min={0} max={1} step={0.05} value={volume} disabled={coupe} onChange={(e) => regler({ volume: Number(e.target.value) })} />
         </Reglage>
-        <Reglage nom="Textes des lieux" aide="Le nom et l'histoire d'un lieu quand on y arrive. On les retrouve toujours dans le journal.">
+        <Reglage nom="Textes des lieux" aide="Le nom d'un lieu quand on y arrive, et le panneau de son histoire à gauche (la flèche le replie). On les retrouve toujours dans le journal.">
           <Interrupteur actif={textesLieux} changer={(v) => regler({ textesLieux: v })} />
         </Reglage>
         <Reglage
@@ -425,6 +434,9 @@ function useRaccourcis() {
         const liste = OBJETS.filter((o) => s.objets.includes(o.id));
         const objet = liste[Number(e.code.slice(5)) - 1];
         if (objet) s.tenir(objet.id);
+      } else if (e.code === "KeyL" && s.enJeu && !s.panneau) {
+        const r = useReglages.getState();
+        r.regler({ loreOuvert: !r.loreOuvert });
       } else if (e.code === "KeyH" && s.enJeu && !s.panneau) {
         const r = useReglages.getState();
         r.regler({ interfaceCachee: !r.interfaceCachee });
